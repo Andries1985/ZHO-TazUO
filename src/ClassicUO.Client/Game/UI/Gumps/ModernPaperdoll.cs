@@ -150,7 +150,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             BuildLayerSlots();
 
-            HitBox _virtueHitBox = new HitBox((WIDTH / 2) - 16, 1, 32, 32, "Virtues menu", 0f);
+            /*HitBox _virtueHitBox = new HitBox((WIDTH / 2) - 16, 1, 32, 32, "Virtues menu", 0f);
             _virtueHitBox.MouseDoubleClick += (s, e) =>
             {
                 GameActions.ReplyGump
@@ -165,7 +165,7 @@ namespace ClassicUO.Game.UI.Gumps
                     new Tuple<ushort, string>[0]
                 );
             };
-            Add(_virtueHitBox);
+            Add(_virtueHitBox);*/
 
             Add(titleLabel = new Label("", true, 0xffff, maxwidth: WIDTH - 30, align: TEXT_ALIGN_TYPE.TS_CENTER) { X = 15, Y = 273 + CELL_SPACING + TOP_SPACING, AcceptMouseInput = false });
 

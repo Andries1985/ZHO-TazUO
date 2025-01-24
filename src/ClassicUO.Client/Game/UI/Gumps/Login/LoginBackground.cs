@@ -55,7 +55,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 );
 
                 // UO Flag
-                Add(new GumpPic(0, 4, 0x0151, 0) { AcceptKeyboardInput = false });
+                // Add(new GumpPic(0, 4, 0x0151, 0) { AcceptKeyboardInput = false });
             }
             else
             {
@@ -66,8 +66,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         0,
                         0,
-                        640,
-                        480,
+                        1792,
+                        1024,
                         0x0E14
                     ) { AcceptKeyboardInput = false }
                 );
@@ -75,7 +75,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 // Border
                 Add(new GumpPic(0, 0, 0x157C, 0) { AcceptKeyboardInput = false });
                 // UO Flag
-                Add(new GumpPic(0, 4, 0x15A0, 0) { AcceptKeyboardInput = false });
+                // Add(new GumpPic(0, 4, 0x15A0, 0) { AcceptKeyboardInput = false });
 
                 // Quit Button
                 Add

@@ -172,10 +172,10 @@ namespace ClassicUO.Game.UI.Gumps
             _picBase?.Dispose();
             _hitBox?.Dispose();
 
-            var showPaperdollBooks =
-                LocalSerial == World.Player && World.ClientFeatures.PaperdollBooks;
-            var showRacialAbilitiesBook =
-                showPaperdollBooks && Client.Version >= ClientVersion.CV_7000;
+            var showPaperdollBooks = false;
+                // LocalSerial == World.Player && World.ClientFeatures.PaperdollBooks;
+                var showRacialAbilitiesBook = false;
+                // showPaperdollBooks && Client.Version >= ClientVersion.CV_7000;
             if (LocalSerial == World.Player)
             {
                 Add(_picBase = new GumpPic(0, 0, settings.Graphic_Background_Player, settings.Hue_Background_Player));
@@ -226,7 +226,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
                 else
                 {
-                    // QUESTS BUTTON
+                    // QUESTS/Chat BUTTON
                     Add(
                         new Button((int)Buttons.Quests, settings.Graphic_Button_Quest_Normal, settings.Graphic_Button_Quest_Pressed, settings.Graphic_Button_Quest_Hover)
                         {
@@ -298,15 +298,15 @@ namespace ClassicUO.Game.UI.Gumps
 
                 int profileX = settings.Position_X_Profile;
 
-                if (showRacialAbilitiesBook)
-                {
-                    profileX += settings.Racial_Abilities_Width;
-                }
+                // if (showRacialAbilitiesBook)
+                // {
+                //     profileX += settings.Racial_Abilities_Width;
+                // }
 
-                Add(_profilePic = new GumpPic(profileX, settings.Position_Y_Profile, settings.Graphic_Button_Profile, 0));
-                profileX += _profilePic.Width;
-                _profilePic.ScaleWidthAndHeight(Scale).ScaleXAndY(Scale).SetInternalScale(Scale);
-                _profilePic.MouseDoubleClick += Profile_MouseDoubleClickEvent;
+                // Add(_profilePic = new GumpPic(profileX, settings.Position_Y_Profile, settings.Graphic_Button_Profile, 0));
+                // profileX += _profilePic.Width;
+                // _profilePic.ScaleWidthAndHeight(Scale).ScaleXAndY(Scale).SetInternalScale(Scale);
+                // _profilePic.MouseDoubleClick += Profile_MouseDoubleClickEvent;
 
                 Add(_partyManifestPic = new GumpPic(profileX, settings.Position_Y_Profile, settings.Graphic_Button_Party, 0));
                 _partyManifestPic.ScaleWidthAndHeight(Scale).ScaleXAndY(Scale).SetInternalScale(Scale);
@@ -322,9 +322,9 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 Add(_picBase = new GumpPic(0, 0, settings.Graphic_Background_Other, settings.Hue_Background_Other));
                 _picBase.ScaleWidthAndHeight(Scale).SetInternalScale(Scale);
-                Add(_profilePic = new GumpPic(settings.Position_X_Profile, settings.Position_Y_Profile, settings.Graphic_Button_Profile, 0));
-                _profilePic.ScaleWidthAndHeight(Scale).SetInternalScale(Scale);
-                _profilePic.MouseDoubleClick += Profile_MouseDoubleClickEvent;
+                // Add(_profilePic = new GumpPic(settings.Position_X_Profile, settings.Position_Y_Profile, settings.Graphic_Button_Profile, 0));
+                // _profilePic.ScaleWidthAndHeight(Scale).SetInternalScale(Scale);
+                // _profilePic.MouseDoubleClick += Profile_MouseDoubleClickEvent;
             }
 
             // STATUS BUTTON
@@ -338,9 +338,9 @@ namespace ClassicUO.Game.UI.Gumps
             );
 
             // Virtue menu
-            Add(_virtueMenuPic = new GumpPic(settings.Position_X_Virtue, settings.Position_Y_Virtue, settings.Graphic_Button_Virtue, 0));
-            _virtueMenuPic.ScaleWidthAndHeight(Scale).ScaleXAndY(Scale).SetInternalScale(Scale);
-            _virtueMenuPic.MouseDoubleClick += VirtueMenu_MouseDoubleClickEvent;
+            // Add(_virtueMenuPic = new GumpPic(settings.Position_X_Virtue, settings.Position_Y_Virtue, settings.Graphic_Button_Virtue, 0));
+            // _virtueMenuPic.ScaleWidthAndHeight(Scale).ScaleXAndY(Scale).SetInternalScale(Scale);
+            // _virtueMenuPic.MouseDoubleClick += VirtueMenu_MouseDoubleClickEvent;
 
             if (LocalSerial == World.Player.Serial)
                 Add(new DurabilityGumpMinimized()
@@ -1096,10 +1096,10 @@ namespace ClassicUO.Game.UI.Gumps
             public ushort Graphic_Button_Status_Pressed { get; set; } = 2028;
             public ushort Graphic_Button_Status_Hover { get; set; } = 2029;
 
-            public ushort Graphic_Button_Profile { get; set; } = 0x07D2;
+            // public ushort Graphic_Button_Profile { get; set; } = 0x07D2;
             public ushort Graphic_Button_Party { get; set; } = 0x07D2;
 
-            public ushort Graphic_Button_Virtue { get; set; } = 0x0071;
+            // public ushort Graphic_Button_Virtue { get; set; } = 0x0071;
 
             public ushort Graphic_Button_Durability { get; set; } = 5587;
 
@@ -1149,8 +1149,8 @@ namespace ClassicUO.Game.UI.Gumps
             public int Position_X_RacialAbilities { get; set; } = 23;
             public int Position_Y_RacialAbilities { get; set; } = 200;
 
-            public int Position_X_Virtue { get; set; } = 80;
-            public int Position_Y_Virtue { get; set; } = 4;
+            // public int Position_X_Virtue { get; set; } = 80;
+            // public int Position_Y_Virtue { get; set; } = 4;
 
             public int Position_X_Durability { get; set; } = 0;
             public int Position_Y_Durability { get; set; } = 40;
