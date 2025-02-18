@@ -1,12 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <ApplicationIcon>cuoicon.ico</ApplicationIcon>
-    <AssemblyName>ClassicUO</AssemblyName>
-    <RootNamespace>ClassicUO</RootNamespace>
+    <OutputType>Exe</OutputType>
+    <ApplicationIcon>zuluhotelomega.ico</ApplicationIcon>
+    <AssemblyName>ZuluhotelOmega</AssemblyName>
+    <RootNamespace>ZuluhotelOmega</RootNamespace>
     <AssemblyVersion>3.24.3</AssemblyVersion>
     <FileVersion>3.24.3</FileVersion>
+    <LangVersion>latestmajor</LangVersion>
+    <Nullable>enable</Nullable>
+    <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
