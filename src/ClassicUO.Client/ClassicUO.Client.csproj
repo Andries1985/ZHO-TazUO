@@ -1,12 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <ApplicationIcon>cuoicon.ico</ApplicationIcon>
-    <AssemblyName>ClassicUO</AssemblyName>
-    <RootNamespace>ClassicUO</RootNamespace>
+    <OutputType>Exe</OutputType>
+    <ApplicationIcon>zuluhotelomega.ico</ApplicationIcon>
     <AssemblyVersion>3.24.3</AssemblyVersion>
     <FileVersion>3.24.3</FileVersion>
+    <AssemblyName>ZuluhotelOmega</AssemblyName>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
