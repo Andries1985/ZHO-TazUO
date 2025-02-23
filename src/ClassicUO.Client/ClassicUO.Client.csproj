@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <ApplicationIcon>cuoicon.ico</ApplicationIcon>
+    <OutputType>Exe</OutputType>
+    <ApplicationIcon>zuluhotelomega.ico</ApplicationIcon>
     <AssemblyName>ClassicUO</AssemblyName>
     <RootNamespace>ClassicUO</RootNamespace>
     <AssemblyVersion>3.24.3</AssemblyVersion>
