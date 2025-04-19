@@ -160,6 +160,11 @@ namespace ClassicUO.Game.UI.Gumps
             return area;
         }
 
+        public static void Open()
+        {
+            UIManager.GetGump<GridHightlightMenu>()?.Dispose();
+            UIManager.Add(new GridHightlightMenu());
+        }
         public static GridHighlightData[] GetAllGridHighlightData()
         {
             List<GridHighlightData> data = new List<GridHighlightData>();
@@ -268,7 +273,27 @@ namespace ClassicUO.Game.UI.Gumps
 
         public class GridHighlightData
         {
+            public static GridHighlightData[] AllConfigs
+            {
+                get
+                {
+                    if (allConfigs != null)
+                        return allConfigs;
+
+                    List<GridHighlightData> result = new List<GridHighlightData>();
+                    for (int propIndex = 0; propIndex < ProfileManager.CurrentProfile.GridHighlight_PropNames.Count; propIndex++)
+                    {
+                        result.Add(GridHighlightData.GetGridHighlightData(propIndex));
+                    }
+
+                    allConfigs = result.ToArray();
+                    return allConfigs;
+                }
+                private set => allConfigs = value;
+            }
+
             private int keyLoc = -1;
+            private static GridHighlightData[] allConfigs;
 
             public string Name { get; set; } = "Name";
             public ushort Hue { get; set; } = 1;
@@ -319,21 +344,25 @@ namespace ClassicUO.Game.UI.Gumps
             private void SaveName()
             {
                 ProfileManager.CurrentProfile.GridHighlight_Name[keyLoc] = Name;
+                allConfigs = null;
             }
 
             private void SaveHue()
             {
                 ProfileManager.CurrentProfile.GridHighlight_Hue[keyLoc] = Hue;
+                allConfigs = null;
             }
 
             private void SaveProps()
             {
                 ProfileManager.CurrentProfile.GridHighlight_PropNames[keyLoc] = Properties;
+                allConfigs = null;
             }
 
             private void SaveMinVals()
             {
                 ProfileManager.CurrentProfile.GridHighlight_PropMinVal[keyLoc] = PropMinVal;
+                allConfigs = null;
             }
 
             private void SaveAsNew()
@@ -343,6 +372,7 @@ namespace ClassicUO.Game.UI.Gumps
                 ProfileManager.CurrentProfile.GridHighlight_PropNames.Add(Properties);
                 ProfileManager.CurrentProfile.GridHighlight_PropMinVal.Add(PropMinVal);
                 keyLoc = ProfileManager.CurrentProfile.GridHighlight_Name.Count;
+                allConfigs = null;
             }
 
             public void Delete()
@@ -351,6 +381,38 @@ namespace ClassicUO.Game.UI.Gumps
                 ProfileManager.CurrentProfile.GridHighlight_Hue.RemoveAt(keyLoc);
                 ProfileManager.CurrentProfile.GridHighlight_PropNames.RemoveAt(keyLoc);
                 ProfileManager.CurrentProfile.GridHighlight_PropMinVal.RemoveAt(keyLoc);
+                allConfigs = null;
+            }
+
+            public bool IsMatch(ItemPropertiesData itemData)
+            {
+                if (!itemData.HasData) return false;
+
+                // Iterate through each search property
+                for (int i = 0; i < Properties.Count; i++)
+                {
+                    string searchString = Properties[i];
+                    double minVal = PropMinVal[i];
+                    bool fullMatch = false;
+
+                    // Check each property on the item
+                    foreach (var property in itemData.singlePropertyData)
+                    {
+                        // Check if the property's Name or OriginalString contains the search string (case-insensitive)
+                        if (property.Name.IndexOf(searchString, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            property.OriginalString.IndexOf(searchString, StringComparison.OrdinalIgnoreCase) >= 0)
+                            if ((minVal == -1) || (property.FirstValue >= minVal))
+                            {
+                                fullMatch = true;
+                                break;
+                            }
+                    }
+
+                    if (!fullMatch) return false;
+                }
+
+                // All search properties have a corresponding match
+                return true;
             }
 
             public static GridHighlightData GetGridHighlightData(int keyLoc)

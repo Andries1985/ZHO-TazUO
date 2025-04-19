@@ -1,8 +1,9 @@
 ﻿using ClassicUO.Configuration;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.UI.Gumps;
+using ClassicUO.Utility;
+using Microsoft.Xna.Framework;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,87 +16,50 @@ namespace ClassicUO.Game.Managers
     {
         public static AutoLootManager Instance { get; private set; } = new AutoLootManager();
         public bool IsLoaded { get { return loaded; } }
-        public List<AutoLootItem> AutoLootList { get => autoLootItems; set => autoLootItems = value; }
+        public List<AutoLootConfigEntry> AutoLootList { get => autoLootItems; set => autoLootItems = value; }
 
-        private static ConcurrentQueue<uint> lootItems = new ConcurrentQueue<uint>();
-
-        private List<AutoLootItem> autoLootItems = new List<AutoLootItem>();
+        private HashSet<uint> quickContainsLookup = new HashSet<uint>();
+        private static Queue<uint> lootItems = new Queue<uint>();
+        private List<AutoLootConfigEntry> autoLootItems = new List<AutoLootConfigEntry>();
         private bool loaded = false;
-        private string savePath = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Profiles", "AutoLoot.json");
-        private bool lootTaskRunning = false;
+        private readonly string savePath = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Profiles", "AutoLoot.json");
+        private long nextLootTime = Time.Ticks;
         private ProgressBarGump progressBarGump;
         private int currentLootTotalCount = 0;
+        private bool IsEnabled { get { return ProfileManager.CurrentProfile.EnableAutoLoot; } }
 
-        private AutoLootManager() { Load(); }
+        private AutoLootManager() { }
 
-        /// <summary>
-        /// This method will, in another thread, start looting the items on the loot list.
-        /// This is called after adding items via CheckAndLoot method.
-        /// </summary>
-        public void StartLooting()
+
+        public bool IsBeingLooted(uint serial)
         {
-            if (loaded && !lootTaskRunning)
-            {
-                int delay = ProfileManager.CurrentProfile == null ? 1000 : ProfileManager.CurrentProfile.MoveMultiObjectDelay;
-                Task.Factory.StartNew(() =>
-                {
-                    Task.Delay(delay).Wait();
-                    try
-                    {
-                        lootTaskRunning = true;
-                        if (lootItems != null && !lootItems.IsEmpty)
-                        {
-                            if(ProfileManager.CurrentProfile.EnableAutoLootProgressBar && (progressBarGump == null || progressBarGump.IsDisposed))
-                            {
-                                progressBarGump = new ProgressBarGump("Auto looting...", 0) { 
-                                    Y = (ProfileManager.CurrentProfile.GameWindowPosition.Y + ProfileManager.CurrentProfile.GameWindowSize.Y) - 150
-                                };
-                                progressBarGump.CenterXInViewPort();
-                                UIManager.Add(progressBarGump);
-                            }
+            return quickContainsLookup.Contains(serial);
+        }
 
-                            while (lootItems.TryDequeue(out uint moveItem))
-                            {
-                                if (progressBarGump != null && !progressBarGump.IsDisposed)
-                                {
-                                    progressBarGump.CurrentPercentage = 1 - ((double)lootItems.Count / (double)currentLootTotalCount);
-                                }
+        public void LootItem(uint serial)
+        {
+            LootItem(World.Items.Get(serial));
+        }
+        public void LootItem(Item i)
+        {
+            if (i == null || quickContainsLookup.Contains(i.Serial)) return;
 
-                                Item m = World.Items.Get(moveItem);
-                                if (m != null)
-                                {
-                                    GameActions.GrabItem(m, m.Amount);
-                                    Task.Delay(delay).Wait();
-                                }
-                            }
-                        }
-                        lootTaskRunning = false;
-                        progressBarGump?.Dispose();
-                        currentLootTotalCount = lootItems.Count;
-                    }
-                    catch
-                    {
-                        lootTaskRunning = false;
-                        progressBarGump?.Dispose();
-                        currentLootTotalCount = lootItems.Count;
-                    }
-                });
-            }
+            lootItems.Enqueue(i);
+            quickContainsLookup.Add(i.Serial);
+            currentLootTotalCount++;
         }
 
         /// <summary>
         /// Check an item against the loot list, if it needs to be auto looted it will be.
         /// I reccomend running this method in a seperate thread if it's a lot of items.
         /// </summary>
-        public void CheckAndLoot(Item i)
+        private void CheckAndLoot(Item i)
         {
-            if (!loaded) return;
+            if (!loaded || i == null || quickContainsLookup.Contains(i.Serial)) return;
 
             if (IsOnLootList(i))
             {
-                currentLootTotalCount++;
-                GameActions.Print($"SAL Looting: {i.Name} {i.Graphic} x {i.Amount}");
-                lootItems.Enqueue(i);
+                LootItem(i);
             }
         }
 
@@ -104,7 +68,7 @@ namespace ClassicUO.Game.Managers
         /// </summary>
         /// <param name="i">The item to check the loot list against</param>
         /// <returns></returns>
-        public bool IsOnLootList(Item i)
+        private bool IsOnLootList(Item i)
         {
             if (!loaded) return false;
 
@@ -117,50 +81,47 @@ namespace ClassicUO.Game.Managers
             }
             return false;
         }
-
-        public AutoLootItem GetLootItem(string ID)
+        /// <summary>
+        /// Add an entry for auto looting to match against when opening corpses.
+        /// </summary>
+        /// <param name="graphic"></param>
+        /// <param name="hue"></param>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public AutoLootConfigEntry AddAutoLootEntry(ushort graphic = 0, ushort hue = ushort.MaxValue, string name = "")
         {
-            foreach (var item in autoLootItems)
-            {
-                if (item.UID == ID)
-                {
-                    return item;
-                }
-            }
+            AutoLootConfigEntry item = new AutoLootConfigEntry() { Graphic = (short)graphic, Hue = hue, Name = name };
 
-            return null;
-        }
-
-        public AutoLootItem AddLootItem(ushort graphic = 0, ushort hue = ushort.MaxValue, string name = "")
-        {
-            foreach(AutoLootItem entry in autoLootItems)
+            foreach (AutoLootConfigEntry entry in autoLootItems)
             {
-                if(entry.Graphic == graphic && entry.Hue == hue)
+                if (entry.Equals(item))
                 {
                     return entry;
                 }
             }
-
-            AutoLootItem item = new AutoLootItem() { Graphic = graphic, Hue = hue, Name = name };
 
             autoLootItems.Add(item);
 
             return item;
         }
 
-        public void HandleCorpse(Item corpse)
+        /// <summary>
+        /// Search through a corpse and check items that need to be looted.
+        /// Only call this after checking that autoloot IsEnabled
+        /// </summary>
+        /// <param name="corpse"></param>
+        private void HandleCorpse(Item corpse)
         {
-            if (corpse != null && ProfileManager.CurrentProfile.EnableAutoLoot && corpse.IsCorpse)
+            if (corpse != null && corpse.IsCorpse && corpse.Distance <= ProfileManager.CurrentProfile.AutoOpenCorpseRange && (!corpse.IsHumanCorpse || ProfileManager.CurrentProfile.AutoLootHumanCorpses))
             {
                 for (LinkedObject i = corpse.Items; i != null; i = i.Next)
                 {
                     CheckAndLoot((Item)i);
                 }
-                StartLooting();
             }
         }
 
-        public void TryRemoveLootItem(string UID)
+        public void TryRemoveAutoLootEntry(string UID)
         {
             int removeAt = -1;
 
@@ -180,16 +141,128 @@ namespace ClassicUO.Game.Managers
 
         public void OnSceneLoad()
         {
+            Load();
+            EventSink.OPLOnReceive += OnOPLReceived;
+            EventSink.OnItemCreated += OnItemCreatedOrUpdated;
+            EventSink.OnItemUpdated += OnItemCreatedOrUpdated;
+            EventSink.OnOpenContainer += OnOpenContainer;
 
+        }
+
+        public void OnSceneUnload()
+        {
+            EventSink.OPLOnReceive -= OnOPLReceived;
+            EventSink.OnItemCreated -= OnItemCreatedOrUpdated;
+            EventSink.OnItemUpdated -= OnItemCreatedOrUpdated;
+            EventSink.OnOpenContainer -= OnOpenContainer;
+            Save();
+        }
+
+        private void CheckItem(Item i)
+        {
+            if (i == null) return;
+
+            if (i.IsCorpse)
+            {
+                HandleCorpse(i);
+                return;
+            }
+
+            var root = World.Items.Get(i.RootContainer);
+            if (root != null && root.IsCorpse)
+            {
+                HandleCorpse(root);
+                return;
+            }
+        }
+
+        private void OnOpenContainer(object sender, uint e)
+        {
+            if (!loaded || !IsEnabled) return;
+
+            HandleCorpse((Item)sender);
+        }
+        private void OnItemCreatedOrUpdated(object sender, EventArgs e)
+        {
+            if (!loaded || !IsEnabled) return;
+            if (sender is Item i)
+                CheckItem(i);
+        }
+        private void OnOPLReceived(object sender, OPLEventArgs e)
+        {
+            if (!loaded || !IsEnabled) return;
+            var item = World.Items.Get(e.Serial);
+            if (item != null)
+                CheckItem(item);
+        }
+
+        public void Update()
+        {
+            if (!loaded || !IsEnabled || !World.InGame) return;
+
+            if (lootItems.Count == 0)
+            {
+                progressBarGump?.Dispose();
+                return;
+            }
+
+            if (nextLootTime > Time.Ticks) return;
+
+
+            var moveItem = lootItems.Dequeue();
+            if (moveItem != 0)
+            {
+                if (lootItems.Count == 0) //Que emptied out                
+                    currentLootTotalCount = 0;
+
+                quickContainsLookup.Remove(moveItem);
+
+                CreateProgressBar();
+
+                if (progressBarGump != null && !progressBarGump.IsDisposed)
+                {
+                    progressBarGump.CurrentPercentage = 1 - ((double)lootItems.Count / (double)currentLootTotalCount);
+                }
+
+                Item m = World.Items.Get(moveItem);
+
+                if (m != null)
+                {
+                    if (m.Distance > ProfileManager.CurrentProfile.AutoOpenCorpseRange)
+                    {
+                        Item rc = World.Items.Get(m.RootContainer);
+                        if (rc != null && rc.Distance > ProfileManager.CurrentProfile.AutoOpenCorpseRange)
+                            return;
+                    }
+                    GameActions.GrabItem(m, m.Amount);
+                    nextLootTime = Time.Ticks + ProfileManager.CurrentProfile.MoveMultiObjectDelay;
+                }
+            }
+        }
+
+        private void CreateProgressBar()
+        {
+            if (ProfileManager.CurrentProfile.EnableAutoLootProgressBar && (progressBarGump == null || progressBarGump.IsDisposed))
+            {
+                progressBarGump = new ProgressBarGump("Auto looting...", 0)
+                {
+                    Y = (ProfileManager.CurrentProfile.GameWindowPosition.Y + ProfileManager.CurrentProfile.GameWindowSize.Y) - 150,
+                    ForegrouneColor = Color.DarkOrange
+                };
+                progressBarGump.CenterXInViewPort();
+                UIManager.Add(progressBarGump);
+            }
         }
 
         private void Load()
         {
+            if (loaded) return;
+
             Task.Factory.StartNew(() =>
             {
                 if (!File.Exists(savePath))
                 {
-                    autoLootItems = new List<AutoLootItem>();
+                    autoLootItems = new List<AutoLootConfigEntry>();
                     loaded = true;
                 }
                 else
@@ -197,8 +270,8 @@ namespace ClassicUO.Game.Managers
                     try
                     {
                         string data = File.ReadAllText(savePath);
-                        AutoLootItem[] tItem = JsonSerializer.Deserialize<AutoLootItem[]>(data);
-                        autoLootItems = tItem.ToList<AutoLootItem>();
+                        AutoLootConfigEntry[] tItem = JsonSerializer.Deserialize<AutoLootConfigEntry[]>(data);
+                        autoLootItems = tItem.ToList<AutoLootConfigEntry>();
                         loaded = true;
                     }
                     catch
@@ -226,11 +299,13 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        public class AutoLootItem
+        public class AutoLootConfigEntry
         {
             public string Name { get; set; } = "";
-            public ushort Graphic { get; set; } = 0;
+            public short Graphic { get; set; } = 0;
             public ushort Hue { get; set; } = ushort.MaxValue;
+            public string RegexSearch { get; set; } = string.Empty;
+            private bool RegexMatch => !string.IsNullOrEmpty(RegexSearch);
             /// <summary>
             /// Do not set this manually.
             /// </summary>
@@ -238,16 +313,18 @@ namespace ClassicUO.Game.Managers
 
             public bool Match(Item compareTo)
             {
-                if (Graphic == compareTo.Graphic) //Graphic matches
-                {
-                    return HueCheck(compareTo.Hue);
-                }
-                return false;
+                if (Graphic != -1 && Graphic != compareTo.Graphic) return false;
+
+                if (!HueCheck(compareTo.Hue)) return false;
+
+                if (RegexMatch && !RegexCheck(compareTo)) return false;
+
+                return true;
             }
 
             private bool HueCheck(ushort value)
             {
-                if (Hue == ushort.MaxValue) //Ignore hue, only check graphic.
+                if (Hue == ushort.MaxValue) //Ignore hue.
                 {
                     return true;
                 }
@@ -259,6 +336,22 @@ namespace ClassicUO.Game.Managers
                 {
                     return false;
                 }
+            }
+
+            private bool RegexCheck(Item compareTo)
+            {
+                string search = "";
+                if (World.OPL.TryGetNameAndData(compareTo, out string name, out string data))
+                    search += name + data;
+                else
+                    search = StringHelper.GetPluralAdjustedString(compareTo.ItemData.Name);
+
+                return System.Text.RegularExpressions.Regex.IsMatch(search, RegexSearch, System.Text.RegularExpressions.RegexOptions.Multiline);
+            }
+
+            public bool Equals(AutoLootConfigEntry other)
+            {
+                return other.Graphic == Graphic && other.Hue == Hue;
             }
         }
     }

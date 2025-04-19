@@ -152,6 +152,7 @@ namespace ClassicUO.Configuration
             public string AuraOptAlways { get; set; } = "Always";
             public string AuraForParty { get; set; } = "Use a custom color for party members";
             public string AuraPartyColor { get; set; } = "Party aura color";
+            public string IgnoreStaminaCheck { get; set; } = "Disable stamina check for movement";
             #endregion
 
             #region General->Gumps
@@ -192,7 +193,7 @@ namespace ClassicUO.Configuration
             public string TextFade { get; set; } = "Enable text fading";
             public string CursorRange { get; set; } = "Show target range indicator";
 
-            public string AutoAvoidObstacules { get; set; } = "Auto Avoid Obstacules";
+            public string AutoAvoidObstacules { get; set; } = "Auto Avoid Obstacles";
             public string DragSelectHP { get; set; } = "Enable drag select for health bars";
             public string DragKeyMod { get; set; } = "Key modifier";
             public string DragPlayersOnly { get; set; } = "Players only";
@@ -437,6 +438,7 @@ namespace ClassicUO.Configuration
             public string DefaultGridColumns { get; set; } = "Default grid columns";
             public string GridHighlightSettings { get; set; } = "Grid highlight settings";
             public string GridHighlightSize { get; set; } = "Grid highlight size";
+            public string GridDisableTargeting { get; set; } = "Disable Targeting Grid Containers";
             #endregion
 
             #region Journal
@@ -490,6 +492,7 @@ namespace ClassicUO.Configuration
             public string DisableAutoFollow { get; set; } = "Disable alt click to auto follow";
             public string DisableMouseInteractionsForOverheadText { get; set; } = "Disable mouse interactions for overhead text";
             public string OverridePartyMemberHues { get; set; } = "Override party member body hues with friendly hue";
+            public string TurnDelay { get; set; } = "Adjust turn delay";
             #endregion
 
             #region Misc
@@ -522,8 +525,8 @@ namespace ClassicUO.Configuration
             public string PlayerOffsetY { get; set; } = "Player Offset Y";
             public string UseLandTexturesWhereAvailable { get; set; } = "Use land textures where available(Experimental)";
             public string SOSGumpID { get; set; } = "SOS Gump ID";
-            public string NearbyItemGump { get; set; } = "Enable nearby item gump";
             public string UseWASDMovement { get; set; } = "Use WASD movement instead of arrow keys";
+            public string BorderCaveTiles { get; set; } = "Apply a border to static item art";
             #endregion
 
             #region Tooltips
@@ -533,6 +536,7 @@ namespace ClassicUO.Configuration
             public string BackgroundHue { get; set; } = "Background hue";
             public string HeaderFormatItemName { get; set; } = "Header format(Item name)";
             public string TooltipOverrideSettings { get; set; } = "Tooltip override settings";
+            public string ForcedTooltips { get; set; } = "Force tooltips on pre-tooltip servers";
             #endregion
 
             #region Fontsettings
@@ -571,9 +575,23 @@ namespace ClassicUO.Configuration
             public string GumpScaling { get; set; } = "Gump scaling";
             public string ScalingInfo { get; set; } = "Some of these settings may only take effect after closing and reopening. Visual bugs may occur until the gump is closed and reopened.";
             public string PaperdollGump { get; set; } = "Paperdoll Gump";
+            public string GlobalScaling { get; set; } = "Global scale";
+            public string GlobalScale { get; set; } = "Scale";
             #endregion
 
             public string AutoLoot { get; set; } = "Autoloot";
+            public string AutoLootEnable { get; set; } = "Enable auto loot";
+            public string AutoLootProgessBarEnable { get; set; } = "Show progress bar while looting";
+            public string AutoLootHumanCorpses { get; set; } = "Loot human corpses? (Potentially player corpses)";
+
+            public string AutoSellMenu { get; set; } = "Auto Sell";
+            public string AutoSellEnable { get; set; } = "Enable auto sell feature";
+
+            public string AutoBuyMenu { get; set; } = "Auto Buy";
+            public string AutoBuyEnable { get; set; } = "Enable auto buy feature";
+            public string GraphicChangeFilter { get; set; } = "Graphic Filter";
+            public string Hotkeys { get; set; } = "Hotkeys";
+
 
             #region VisibileLayers
             public string VisibleLayers { get; set; } = "Visible Layers";

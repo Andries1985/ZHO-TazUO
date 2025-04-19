@@ -27,7 +27,9 @@ namespace ClassicUO.LegionScripting
 
             Add(background = new AlphaBlendControl());
 
-            Add(title = new TextBox(scriptFile.FileName, TrueTypeLoader.EMBEDDED_FONT, 24, Width - 100, color: Color.White, strokeEffect: false) { AcceptMouseInput = false });
+            title = TextBox.GetOne(scriptFile.FileName, TrueTypeLoader.EMBEDDED_FONT, 24, Color.White, TextBox.RTLOptions.Default(Width - 100));
+            title.AcceptMouseInput = false;
+            Add(title);
 
             Add(save = new NiceButton(Width - 50, 0, 50, 50, ButtonAction.Default, "Save"));
             save.MouseUp += Save_MouseUp;
@@ -38,7 +40,7 @@ namespace ClassicUO.LegionScripting
 
             int width = Width - scrollArea.ScrollBarWidth() - 4;
 
-            scrollArea.Add(textArea = new TTFTextInputField(width, Height - 50, text: string.Join("\n", scriptFile.FileContents), multiline: true, convertHtmlColors: false) { X = BorderControl.BorderSize, Y = BorderControl.BorderSize });
+            scrollArea.Add(textArea = new TTFTextInputField(width, Height - 50, text: string.Join("\n", scriptFile.ReadFromFile()), multiline: true, convertHtmlColors: false) { X = BorderControl.BorderSize, Y = BorderControl.BorderSize });
             textArea.TextChanged += (s, e) =>
             {
                 int h = textArea.TextBox.TotalHeight > scrollArea.Height ? textArea.TextBox.TotalHeight : scrollArea.Height;
@@ -83,6 +85,8 @@ namespace ClassicUO.LegionScripting
             {
                 File.WriteAllText(ScriptFile.FullPath, sb);
                 GameActions.Print($"Saved {ScriptFile.FileName}.");
+                if (ScriptFile.ScriptType == ScriptType.LegionScript)
+                    ScriptFile.ReloadFromFile();
             }
             catch (Exception ex)
             {

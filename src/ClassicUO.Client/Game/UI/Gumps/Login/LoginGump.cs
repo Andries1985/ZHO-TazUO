@@ -363,7 +363,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     X = offsetX,
                     Y = offsetY,
                     Width = 190,
-                    Height = 25
+                    Height = 25,
+                    PlaceHolderText="Account Name"
                 }
             );
 
@@ -396,7 +397,15 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     _textboxAccount.ContextMenu.Add(new ContextMenuItemEntry(acct, () => { _textboxAccount.SetText(acct); }));
                 }
                 _textboxAccount.SetTooltip("Right click to select another account.");
-                _textboxAccount.MouseUp += (s, e) => { if (e.Button == MouseButtonType.Right) _textboxAccount.ContextMenu.Show(); };
+                _textboxAccount.MouseUp += (s, e) =>
+                {
+                    if (e.Button == MouseButtonType.Right)
+                    {
+                        _textboxAccount.ContextMenu.Show();
+                        UIManager.ContextMenu.X = _textboxAccount.X + _textboxAccount.Width;
+                        UIManager.ContextMenu.Y = _textboxAccount.Y + _textboxAccount.Height;
+                    }
+                };
             }
 
             _passwordFake.RealText = Crypter.Decrypt(Settings.GlobalSettings.Password);
@@ -436,7 +445,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     false,
                     false,
                     false,
-                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://www.classicuo.eu\">Website",
+                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://www.classicuo.eu\">CUO Website",
                     0x32,
                     true,
                     isunicode: true,
@@ -455,7 +464,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     false,
                     false,
                     false,
-                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://discord.gg/VdyCpjQ\">Join Discord",
+                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://discord.gg/VdyCpjQ\">CUO Discord",
                     0x32,
                     true,
                     isunicode: true,
@@ -465,18 +474,26 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
             TextBox _;
             HitBox _hit;
-            Add(_ = new TextBox("TazUO Wiki", TrueTypeLoader.EMBEDDED_FONT, 15, 200, Color.Orange, strokeEffect: false) { X = 30, Y = 420, AcceptMouseInput = true });
+            var options = TextBox.RTLOptions.Default();
+            options.Width = 200;
+            Add(_ = TextBox.GetOne("TazUO Wiki", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
+            _.X = 30;
+            _.Y = 420;
+            _.AcceptMouseInput = true;
             Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
             _hit.MouseUp += (s, e) =>
             {
-                Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/bittiez/ClassicUO/wiki");
+                Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/bittiez/TazUO/wiki");
             };
 
-            Add(_ = new TextBox("TazUO Discord", TrueTypeLoader.EMBEDDED_FONT, 15, 200, Color.Orange, strokeEffect: false) { X = 30, Y = 440, AcceptMouseInput = true });
+            Add(_ = TextBox.GetOne("TazUO Discord", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
+            _.X = 30;
+            _.Y = 440;
+            _.AcceptMouseInput = true;
             Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
             _hit.MouseUp += (s, e) =>
             {
-                Utility.Platforms.PlatformHelper.LaunchBrowser("https://discord.gg/SqwtB5g95H");
+                Utility.Platforms.PlatformHelper.LaunchBrowser("https://discord.gg/QvqzkB95G4");
             };
 
             Checkbox loginmusic_checkbox = new Checkbox
@@ -537,39 +554,12 @@ namespace ClassicUO.Game.UI.Gumps.Login
             {
                 _textboxAccount.SetKeyboardFocus();
             }
-
-            _ = new TextBox("A new version of TazUO is available!\n Click to open the download page.", TrueTypeLoader.EMBEDDED_FONT, 20, 300, Color.Yellow, strokeEffect: false) { X = 10, Y = 10, AcceptMouseInput = false };
-            Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
-            _hit.MouseUp += (s, e) =>
-            {
-                Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/bittiez/TazUO/releases/latest");
-            };
-            _hit.Add(new AlphaBlendControl() { Width = _hit.Width, Height = _hit.Height });
-            Add(_);
-            if (!UpdateManager.HasUpdate)
-            {
-                _.IsVisible = false;
-                _hit.IsVisible = false;
-            }
-
-            if (!UpdateManager.SkipUpdateCheck)
-            {
-                UpdateManager.UpdateStatusChanged += (s, e) =>
-                {
-                    if (UpdateManager.HasUpdate)
-                    {
-                        _.IsVisible = true;
-                        _hit.IsVisible = true;
-                    }
-                };
-            }
-
         }
 
         protected override void OnControllerButtonUp(SDL.SDL_GameControllerButton button)
         {
             base.OnControllerButtonUp(button);
-            if(button == SDL.SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_A)
+            if (button == SDL.SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_A)
             {
                 SaveCheckboxStatus();
                 LoginScene ls = Client.Game.GetScene<LoginScene>();

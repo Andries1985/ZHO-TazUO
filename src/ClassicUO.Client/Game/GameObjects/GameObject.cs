@@ -38,7 +38,6 @@ using ClassicUO.Game.Map;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace ClassicUO.Game.GameObjects
@@ -48,19 +47,13 @@ namespace ClassicUO.Game.GameObjects
         public Point RealScreenPosition;
     }
 
-    internal class DamageEvent
-    {
-        public int Damage { get; set; }
-        public DateTime Timestamp { get; set; }
-    }
-
     public abstract partial class GameObject : BaseGameObject
     {
         public bool IsDestroyed { get; protected set; }
         public bool IsPositionChanged { get; protected set; }
         public TextContainer TextContainer { get; private set; }
 
-        private List<DamageEvent> _damageEvents = new List<DamageEvent>();
+        private AverageOverTime _averageOverTime;
 
         public int Distance
         {
@@ -101,7 +94,14 @@ namespace ClassicUO.Game.GameObjects
 
         // FIXME: remove it
         public sbyte FoliageIndex = -1;
-        public ushort Graphic;
+        public ushort Graphic
+        {
+            get => graphic; set
+            {
+                GraphicsReplacement.Replace(ref value, ref Hue);
+                graphic = value;
+            }
+        }
         public ushort Hue;
         public Vector3 Offset;
         public short PriorityZ;
@@ -111,28 +111,17 @@ namespace ClassicUO.Game.GameObjects
             Y;
         public sbyte Z;
         public GameObject RenderListNext;
+        private ushort graphic;
 
         public void AddDamage(int damage)
         {
-            _damageEvents.Add(new DamageEvent { Damage = damage, Timestamp = DateTime.UtcNow });
-        }
-        public double GetCurrentDPS(int seconds = 15)
-        {
-            double totalDamage = 0;
-            int timestart = -1;
-            foreach (DamageEvent damageEvent in _damageEvents)
-            {
-                if (damageEvent.Timestamp < DateTime.UtcNow - TimeSpan.FromSeconds(seconds))
-                {
-                    continue;
-                }
-                if(timestart == -1)
-                    timestart = (int)(DateTime.UtcNow - damageEvent.Timestamp).TotalSeconds;
+            _averageOverTime ??= new AverageOverTime(TimeSpan.FromSeconds(15));
 
-                totalDamage += damageEvent.Damage;
-            }
-            timestart = timestart <= 0 ? seconds : timestart;
-            return Math.Round(totalDamage / (double)timestart, 1);
+            _averageOverTime.AddValue(Time.Ticks, damage);
+        }
+        public double GetCurrentDPS()
+        {
+            return Math.Round(_averageOverTime.LastAveragePerSecond, 1);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -396,7 +385,7 @@ namespace ClassicUO.Game.GameObjects
             Next = null;
             Previous = null;
             RenderListNext = null;
-            _damageEvents.Clear();
+            _averageOverTime = null;
             Clear();
             RemoveFromTile();
             TextContainer?.Clear();

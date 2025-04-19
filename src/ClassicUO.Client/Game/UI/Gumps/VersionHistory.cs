@@ -8,14 +8,65 @@ namespace ClassicUO.Game.UI.Gumps
     internal class VersionHistory : Gump
     {
         private static string[] updateTexts = {
+            "/c[white][3.29.0]/cd\n" +
+                "- Moved tooltip override options into main menu\n"+
+                "- Expanded Python API\n"+
+                "- Prevent moving gumps outside the client window\n"+
+                "- Reworked internal TTF fonts for better performance\n"+
+                "- Fixed a bug in tooltips, likely not noticable but should be a significant performance boost while a tooltip is shown.\n"+
+                "- Added -artbrowser and -animbrowser commands\n"+
+                "- Added option to disable targeting grid containers directly\n"+
+                "- Added Avadonian font back in\n",
+
+            "/c[white][3.28.0]/cd\n" +
+                "- Added auto buy and sell agents\n" +
+                "- Added Python scripting language support to legion scripting\n" +
+                "- Added graphic replacement option\n" +
+                "- Better item stacking in original containers while using grid containers \n" +
+                "- Added a hotkeys page in options\n" +
+                "- Improved autolooting\n",
+
+            "/c[white][3.27.0]/cd\n" +
+                "- Added forced tooltip option for pre-tooltip servers\n" +
+                "- Added global scaling\n" +
+                "- Add regex matching for autoloot\n" +
+                "- Improved modern shop gump asthetics\n" +
+                "- Counter bars can now be assigned spells\n" +
+                "- Removed unused scripting system\n" +
+                "- Added adjustable turn delay\n",
+
+            "/c[white][3.26.1]/cd\n" +
+                "- Fix for replygump command in legion scripting\n" +
+
+            "/c[white][3.26.0]/cd\n" +
+                "- Added optional regex to tooltip overrides\n" +
+                "- Minor improvements in tooltip overrides\n" +
+                "- Fix whitespace error during character creation\n" +
+                "- Nearby item gump will close if moved, or 30 seconds has passed\n" +
+
+            "/c[white][3.25.2]/cd\n" +
+                "- Nearby item gump moved to macros\n" +
+
+            "/c[white][3.25.1]/cd\n" +
+                "- Added DPS meter\n" +
+                "- Legion Scripting bug fix\n" +
+
+            "/c[white][3.25.0]/cd\n" +
+                "- Added the Legion scripting engine, see wiki for details\n" +
+                "- Updated some common default settings that are usually used\n" +
+                "- More controller QOL improvements\n" +
+                "- Added tooltips for counterbar items\n" +
+                "- Added a nearby items feature(See wiki for details)\n" +
+                "- Various bug fixes\n" +
+
             "/c[white][3.24.2]/cd\n" +
-                "- Fix Invisible itens in Osi New Legacy Server\n" +
-                "- Fix added more slots for show itens layer in paperdoll \n" +
+                "- Fix Invisible items in Osi New Legacy Server\n" +
+                "- Fix added more slots for show items layer in paperdoll \n" +
                 "- Add scrollbar to cooldowns in options  \n" +
                 "- Created progress bar for auto loot \n" +
                 "- Fix skill progress bars \n" +
                 "- Fix scroll area in autoloot options \n" +
-                "- Create toogle and controller gumps for play in steam deck \n" +
+                "- Create gump toggle mcros gumps for controller gameplay \n" +
                 "- Save position of durability gump while in game \n" +
 
             "/c[white][3.24.2]/cd\n" +
@@ -25,20 +76,20 @@ namespace ClassicUO.Game.UI.Gumps
                 "- Fix Pathfinding algorithm using Z more efficiently from ghzatomic \n" +
 
              "/c[white][3.24.1]/cd\n" +
-                "- Fix for not load Modern  Paperdoll\n" +
+                "- Fix for Modern Paperdoll not loading\n" +
                 "- Fix Using Weapons Abilitys\n" +
 
             "/c[white][3.24.0]/cd\n" +
                 "- Updated the algorithm for reading mul encryption\n" +
-                "- Fix creation of the scroll in the list infobar manager\n" +
-                "- Fix ignoring player also in chat too\n" +
-                "- Add Auto Avoid Obstacules",
+                "- Fix scrolling in the infobar manager\n" +
+                "- Fix ignoring player in chat too\n" +
+                "- Add auto avoid obstacles",
 
             "/c[white][3.23.2]/cd\n" +
-                "- Fixed Disarm and Stun Hability AOS",
+                "- Fixed Disarm and Stun ability AOS",
 
             "/c[white][3.23.1]/cd\n" +
-                "- Fixed Weird lines if show Nameplate",
+                "- Fixed Weird lines with nameplate",
 
             "/c[white][3.23.0]/cd\n" +
                 "- Nameplate healthbar poison and invul/paralyzed colors from Elderwyn\n" +
@@ -201,59 +252,11 @@ namespace ClassicUO.Game.UI.Gumps
                 "- Fix for text not being clickable\n" +
                 "- Added yellow highlighting for overhead text",
 
-            "/c[white][3.7.0]/cd\n" +
-                "- Updated some default font sizes, slightly larger (New installs only)\n" +
-                "- Added item count to grid containers\n" +
-                "- Changed health lines back to blue\n" +
-                "- Added boat control gump\n" +
-                "- Fixed + symbol issue with tooltip overrides\n" +
-                "- Fixed an issue with having zero tooltip overrides\n" +
-                "- Fixed journal width issue when timestamps are disabled\n" +
-                "- Added {3} to tooltip overrides, inserting the original tooltip property",
-
-            "/c[white][3.6.0]/cd\n" +
-                "- Tooltip import crash fix\n" +
-                "- Tooltip delete all override button added\n" +
-                "- Tooltip override color fix\n" +
-                "- Added an error message when importing tooltip override fails\n" +
-                "- Fixed tooltip background hue offset",
-
-            "/c[white][3.5.0]/cd\n" +
-                "- Bug fix for EA egg event\n" +
-                "- Added tooltip header formatting(change item name color)\n" +
-                "- Damage hues fixed\n" +
-                "- Added fix for <h2> and <Bodytextcolor> tags\n" +
-                "- Tooltip crash fix\n" +
-                "- Added tooltip export and import buttons\n" +
-                "- Updated to the main CUO repo",
-
-            "/c[white][3.4.0]/cd\n" +
-                "- Added this version history gump\n" +
-                "- Added /c[green]-version/cd command to open this gump\n" +
-                "- Made advanced skill gump more compact, height resizable and can grab skill buttons by dragging skills\n" +
-                "- Added tooltip override feature (See wiki for more details)\n" +
-                "- Better rain\n" +
-                "- Fixed tooltips in vendor search\n" +
-                "- Fixed modern shop gump displaying wrong items at animal trainers\n" +
-                "- Added hide border and timestamps to journal options\n" +
-                "- Added hide border option for grid containers",
-
-            "/c[white][3.3.0]/cd\n" +
-                "-Last attack automatic healthbar gump will remember its position\n" +
-                "-Nameplate gump now has a search option (Ctrl + Shift)\n"+
-                "-Fix number(gold) entry for trading gump\n"+
-                "-Fixed red warmode outline for custom health gumps\n"+
-                "-Graphics in info bar -> See wiki\n"+
-                "-Tooltip background colors adjustable\n"+
-                "-Tmap and SOS right click menu moved to menu icon on gump\n"+
-                "- \"/c[green]-skill /c[white]skillname/cd\" command added to use skills\n",
             "\n\n/c[white]For further history please visit our discord."
         };
 
         public VersionHistory() : base(0, 0)
         {
-            X = 300;
-            Y = 200;
             Width = 400;
             Height = 500;
             CanCloseWithRightClick = true;
@@ -274,17 +277,23 @@ namespace ClassicUO.Game.UI.Gumps
             Add(bc);
 
             TextBox _;
-            Add(_ = new TextBox(Language.Instance.TazuoVersionHistory, TrueTypeLoader.EMBEDDED_FONT, 30, Width, Color.White, FontStashSharp.RichText.TextHorizontalAlignment.Center, false) { Y = 10 });
-            Add(_ = new TextBox(Language.Instance.CurrentVersion + CUOEnviroment.Version.ToString(), TrueTypeLoader.EMBEDDED_FONT, 20, Width, Color.Orange, FontStashSharp.RichText.TextHorizontalAlignment.Center, false) { Y = _.Y + _.Height + 5 });
+            Add(_ = TextBox.GetOne(Language.Instance.TazuoVersionHistory, TrueTypeLoader.EMBEDDED_FONT, 30, Color.White, TextBox.RTLOptions.DefaultCentered(Width)));
+            _.Y = 5;
+
+            int y = _.Y + _.Height + 5;
+            Add(_ = TextBox.GetOne(Language.Instance.CurrentVersion + CUOEnviroment.Version.ToString(), TrueTypeLoader.EMBEDDED_FONT, 20, Color.Orange, TextBox.RTLOptions.DefaultCentered(Width)));
+            _.Y = y;
 
             ScrollArea scroll = new ScrollArea(10, _.Y + _.Height, Width - 20, Height - (_.Y + _.Height) - 20, true) { ScrollbarBehaviour = ScrollbarBehaviour.ShowAlways };
 
             Add(new AlphaBlendControl(0.45f) { Width = scroll.Width, Height = scroll.Height, X = scroll.X, Y = scroll.Y });
 
-            int y = 0;
+            y = 0;
             foreach (string s in updateTexts)
             {
-                scroll.Add(_ = new TextBox(s, TrueTypeLoader.EMBEDDED_FONT, 15, scroll.Width - scroll.ScrollBarWidth(), Color.Orange, FontStashSharp.RichText.TextHorizontalAlignment.Left, false) { Y = y });
+                scroll.Add(_ = TextBox.GetOne(s, TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, TextBox.RTLOptions.Default(scroll.Width - scroll.ScrollBarWidth())));
+                _.Y = y;
+                _.AcceptMouseInput = false;
                 y += _.Height + 10;
             }
 
@@ -292,19 +301,30 @@ namespace ClassicUO.Game.UI.Gumps
 
 
             HitBox _hit;
-            Add(_ = new TextBox(Language.Instance.TazUOWiki, TrueTypeLoader.EMBEDDED_FONT, 15, 200, Color.Orange, strokeEffect: false) { X = 25, Y = Height - 20 });
+            _ = TextBox.GetOne(Language.Instance.TazUOWiki, TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, TextBox.RTLOptions.Default(200));
+            _.X = 25;
+            _.Y = Height - 20;
+            Add(_);
+            
             Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
             _hit.MouseUp += (s, e) =>
             {
-                Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/bittiez/ClassicUO/wiki");
+                Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/bittiez/TazUO/wiki");
+            };
+            
+            _ = TextBox.GetOne(Language.Instance.TazUODiscord, TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, TextBox.RTLOptions.Default(200));
+            _.X = 280;
+            _.Y = Height - 20;
+            Add(_);
+
+            Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
+            _hit.MouseUp += (s, e) =>
+            {
+                Utility.Platforms.PlatformHelper.LaunchBrowser("https://discord.gg/QvqzkB95G4");
             };
 
-            Add(_ = new TextBox(Language.Instance.TazUOWiki, TrueTypeLoader.EMBEDDED_FONT, 15, 200, Color.Orange, strokeEffect: false) { X = 280, Y = Height - 20 });
-            Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
-            _hit.MouseUp += (s, e) =>
-            {
-                Utility.Platforms.PlatformHelper.LaunchBrowser("https://discord.gg/SqwtB5g95H");
-            };
+            CenterXInScreen();
+            CenterYInScreen();
         }
     }
 }

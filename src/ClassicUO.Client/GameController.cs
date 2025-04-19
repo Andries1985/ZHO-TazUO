@@ -209,7 +209,6 @@ namespace ClassicUO
             _background = Texture2D.FromStream(GraphicsDevice, ms);
 
             loadResourceAssets.Wait(10000);
-
             SetScene(new LoginScene());
             SetWindowPositionBySettings();
         }
@@ -255,7 +254,7 @@ namespace ClassicUO
             if (string.IsNullOrEmpty(title))
             {
 #if DEV_BUILD
-                Window.Title = $"ClassicUO [dev] - {CUOEnviroment.Version}";
+                Window.Title = $"TazUO [dev] - {CUOEnviroment.Version}";
 #else
                 Window.Title = $"[TazUO {CUOEnviroment.Version}]";
 #endif
@@ -263,7 +262,7 @@ namespace ClassicUO
             else
             {
 #if DEV_BUILD
-                Window.Title = $"{title} - ClassicUO [dev] - {CUOEnviroment.Version}";
+                Window.Title = $"{title} - TazUO [dev] - {CUOEnviroment.Version}";
 #else
                 Window.Title = $"{title} - [TazUO {CUOEnviroment.Version}]";
 #endif
@@ -621,12 +620,12 @@ namespace ClassicUO
             switch (sdlEvent->type)
             {
                 case SDL_EventType.SDL_AUDIODEVICEADDED:
-                    Console.WriteLine("AUDIO ADDED: {0}", sdlEvent->adevice.which);
+                    Log.Trace($"AUDIO ADDED: {sdlEvent->adevice.which}");
 
                     break;
 
                 case SDL_EventType.SDL_AUDIODEVICEREMOVED:
-                    Console.WriteLine("AUDIO REMOVED: {0}", sdlEvent->adevice.which);
+                    Log.Trace($"AUDIO REMOVED: {sdlEvent->adevice.which}");
 
                     break;
 
@@ -945,15 +944,6 @@ namespace ClassicUO
                     Controller.OnButtonDown(sdlEvent->cbutton);
                     UIManager.KeyboardFocusControl?.InvokeControllerButtonDown((SDL_GameControllerButton)sdlEvent->cbutton.button);
                     Scene.OnControllerButtonDown(sdlEvent->cbutton);
-
-                    if (sdlEvent->cbutton.button == (byte)SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_DOWN)
-                    {
-                        UIManager.OnMouseWheel(false);
-                    }
-                    else if (sdlEvent->cbutton.button == (byte)SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_UP)
-                    {
-                        UIManager.OnMouseWheel(true);
-                    }
 
                     if (sdlEvent->cbutton.button == (byte)SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_RIGHTSTICK)
                     {

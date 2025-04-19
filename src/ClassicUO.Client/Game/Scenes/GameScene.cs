@@ -43,6 +43,7 @@ using ClassicUO.Renderer;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
+using FontStashSharp;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SDL2;
@@ -201,20 +202,6 @@ namespace ClassicUO.Game.Scenes
             SpellDefinition.LoadCustomSpells();
             SpellVisualRangeManager.Instance.OnSceneLoad();
             AutoLootManager.Instance.OnSceneLoad();
-            if (!UpdateManager.SkipUpdateCheck && UpdateManager.HasUpdate)
-            {
-                UpdateManager.SendDelayedUpdateMessage();
-            }
-            else if (!UpdateManager.SkipUpdateCheck)
-            {
-                UpdateManager.UpdateStatusChanged += (s, e) =>
-                {
-                    if (UpdateManager.HasUpdate)
-                    {
-                        UpdateManager.SendDelayedUpdateMessage();
-                    }
-                };
-            }
 
             foreach (var xml in ProfileManager.CurrentProfile.AutoOpenXmlGumps)
             {
@@ -222,6 +209,8 @@ namespace ClassicUO.Game.Scenes
             }
 
             LegionScripting.LegionScripting.Init();
+            BuySellAgent.Load();
+            GraphicsReplacement.Load();
         }
 
         private void ChatOnMessageReceived(object sender, MessageEventArgs e)
@@ -361,6 +350,9 @@ namespace ClassicUO.Game.Scenes
                 return;
             }
 
+            GraphicsReplacement.Save();
+            BuySellAgent.Unload();
+
             LegionScripting.LegionScripting.Unload();
 
             ProfileManager.CurrentProfile.GameWindowPosition = new Point(
@@ -396,7 +388,7 @@ namespace ClassicUO.Game.Scenes
             TileMarkerManager.Instance.Save();
             SpellVisualRangeManager.Instance.Save();
             SpellVisualRangeManager.Instance.OnSceneUnload();
-            AutoLootManager.Instance.Save();
+            AutoLootManager.Instance.OnSceneUnload();
 
             NameOverHeadManager.Save();
 
@@ -404,7 +396,6 @@ namespace ClassicUO.Game.Scenes
             InfoBars.Save();
             ProfileManager.UnLoadProfile();
 
-            StaticFilters.CleanCaveTextures();
             StaticFilters.CleanTreeTextures();
 
             NetClient.Socket.Disconnected -= SocketOnDisconnected;
@@ -849,6 +840,7 @@ namespace ClassicUO.Game.Scenes
             BoatMovingManager.Update();
             Pathfinder.ProcessAutoWalk();
             DelayedObjectClickManager.Update();
+            AutoLootManager.Instance.Update();
 
             if (!MoveCharacterByMouseInput() && !currentProfile.DisableArrowBtn && !MoveCharByController())
             {
@@ -1038,6 +1030,18 @@ namespace ClassicUO.Game.Scenes
 
             if (!_use_render_target)
             {
+                if (ProfileManager.CurrentProfile.GlobalScaling)
+                {
+                    Camera.Zoom = 1f; // oScale + ProfileManager.CurrentProfile.GlobalScale;
+                    matrix = Matrix.CreateScale(ProfileManager.CurrentProfile.GlobalScale);
+                    camera_viewport.Bounds = new Rectangle(
+                        (int)(camera_viewport.Bounds.X * ProfileManager.CurrentProfile.GlobalScale),
+                        (int)(camera_viewport.Bounds.Y * ProfileManager.CurrentProfile.GlobalScale),
+                        (int)(camera_viewport.Bounds.Width * ProfileManager.CurrentProfile.GlobalScale),
+                        (int)(camera_viewport.Bounds.Height * ProfileManager.CurrentProfile.GlobalScale)
+                        );
+                }
+
                 can_draw_lights = PrepareLightsRendering(batcher, ref matrix);
                 batcher.GraphicsDevice.Viewport = camera_viewport;
             }
@@ -1105,7 +1109,10 @@ namespace ClassicUO.Game.Scenes
             // draw lights
             if (can_draw_lights)
             {
-                batcher.Begin();
+                if (ProfileManager.CurrentProfile.GlobalScaling)
+                    batcher.Begin(null, Matrix.CreateScale(ProfileManager.CurrentProfile.GlobalScale));
+                else
+                    batcher.Begin();
 
                 if (UseAltLights)
                 {
@@ -1129,7 +1136,10 @@ namespace ClassicUO.Game.Scenes
                 hue.Z = 1f;
             }
 
-            batcher.Begin();
+            if (ProfileManager.CurrentProfile.GlobalScaling)
+                batcher.Begin(null, Matrix.CreateScale(ProfileManager.CurrentProfile.GlobalScale));
+            else
+                batcher.Begin();
             DrawOverheads(batcher);
             DrawSelection(batcher);
             batcher.End();

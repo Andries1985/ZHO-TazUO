@@ -63,6 +63,12 @@ namespace ClassicUO.Game.UI
                                     gump.SavePosition = savePos;
                                 }
                                 break;
+                            case "acceptmouseinput":
+                                if (bool.TryParse(attr.Value, out bool b))
+                                {
+                                    gump.AcceptMouseInput = b;
+                                }
+                                break;
                         }
                     }
 
@@ -693,8 +699,11 @@ namespace ClassicUO.Game.UI
             }
             TextBox t;
 
-
-            gump.Add(t = new TextBox(FormatText(textNode.InnerText), font, fontSize, width > 0 ? width : null, hue, align, false) { X = x, Y = y, AcceptMouseInput = false });
+            TextBox.RTLOptions textboxOptions = new (){Width = width > 0 ? width : null, Align = align};
+            gump.Add(t = TextBox.GetOne(FormatText(textNode.InnerText), font, fontSize, hue, textboxOptions));
+            t.X = x;
+            t.Y = y;
+            t.AcceptMouseInput = false;
 
             if (needsUpdates)
             {
@@ -842,7 +851,7 @@ namespace ClassicUO.Game.UI
                         {
                             if (t.Item2.Item2 < 1)
                             {
-                                t.Item1.UpdateText(newString);
+                                t.Item1.Text = newString;
                             }
                             else
                             {

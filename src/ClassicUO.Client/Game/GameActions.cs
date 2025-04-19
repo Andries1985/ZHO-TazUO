@@ -35,8 +35,10 @@ using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.Scenes;
+using ClassicUO.Game.UI;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Input;
+using ClassicUO.LegionScripting;
 using ClassicUO.Network;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
@@ -94,6 +96,49 @@ namespace ClassicUO.Game
         public static void OpenDurabilityGump()
         {
             UIManager.Add(new DurabilitysGump());
+        }
+
+        public static void OpenLegionScriptingGump()
+        {
+            UIManager.Add(new ScriptManagerGump());
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns>False if no nearby loot gump was open</returns>
+        public static bool CloseLegionScriptingGump(){
+            Gump g = UIManager.GetGump<ScriptManagerGump>();
+
+            if (g != null)
+            {
+                g.Dispose();
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns>False if no nearby loot gump was open</returns>
+        public static bool CloseNearbyLootGump()
+        {
+            Gump g = UIManager.GetGump<NearbyLootGump>();
+
+            if (g != null)
+            {
+                g.Dispose();
+                return true;
+            }
+
+            return false;
+        }
+
+        public static void OpenNearbyLootGump()
+        {
+            UIManager.Add(new NearbyLootGump());
         }
 
         public static void OpenMacroGump(string name)
@@ -350,13 +395,15 @@ namespace ClassicUO.Game
             }
         }
 
-        public static void BandageSelf()
+        public static bool BandageSelf()
         {
             Item bandage = World.Player.FindBandage();
             if (bandage != null)
             {
                 NetClient.Socket.Send_TargetSelectedObject(bandage.Serial, World.Player.Serial);
+                return true;
             }
+            return false;
         }
 
         /// <summary>
@@ -834,6 +881,8 @@ namespace ClassicUO.Game
                                      button,
                                      switches,
                                      entries);
+            if (CUOEnviroment.Debug)
+                GameActions.Print($"Gump Button: {button} for gump: {server}");
         }
 
         public static void RequestHelp()
@@ -1057,7 +1106,7 @@ namespace ClassicUO.Game
                 UIManager.Add(new CombatBookGump(100, 100));
             }
         }
-        private static void SendAbility(byte idx, bool primary)
+        public static void SendAbility(byte idx, bool primary)
         {
             if ((World.ClientLockedFeatures.Flags & LockedFeatureFlags.AOS) == 0)
             {
@@ -1110,7 +1159,7 @@ namespace ClassicUO.Game
             }
             else
             {
-                SendAbility(0, true);
+                SendAbility(1, true);
             }
 
             ability ^= (Ability)0x80;

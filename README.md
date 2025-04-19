@@ -1,15 +1,17 @@
-<p align="center"><img src="https://github.com/bittiez/TazUO/assets/3859393/832c4cf3-8525-419b-ad16-3c5f7de1b80c" width="300" height="300"></p>
+<p align="center"><a href="https://github.com/bittiez/TazUO/discussions">Join our discussions page</a></p>
 
-<p align="center">
-    <a href="https://discord.gg/SqwtB5g95H">
-    <img src="https://img.shields.io/discord/1087124353155608617.svg?logo=discord"
-    alt="chat on Discord"></a>
-</p>
+<p align="center"><a href="https://discord.gg/QvqzkB95G4">Join our Discord</a></p>
+
+The wiki has been restored! And we have set up a new [Discord](https://discord.gg/QvqzkB95G4)
 
 ***
 
 
-Release: [![Release](https://github.com/bittiez/TazUO/actions/workflows/build-test.yml/badge.svg?branch=main)](https://github.com/bittiez/TazUO/actions/workflows/build-test.yml)  Dev: [![Dev](https://github.com/bittiez/TazUO/actions/workflows/build-test.yml/badge.svg?branch=dev)](https://github.com/bittiez/TazUO/actions/workflows/build-test.yml)   
+| Channel | Status |
+| --- | --- |
+| Release | [![Release](https://github.com/bittiez/TazUO/actions/workflows/build-test.yml/badge.svg?branch=main)](https://github.com/bittiez/TazUO/actions/workflows/build-test.yml) |
+| Dev | [![Dev](https://github.com/bittiez/TazUO/actions/workflows/build-test.yml/badge.svg?branch=dev)](https://github.com/bittiez/TazUO/actions/workflows/build-test.yml) |
+
 
 # What is TazUO?
 **TazUO** was originally a fork from ClassicUO with the mindset of adding features requested by users to improve QOL. **TazUO** has since moved away from ClassicUO, we will keep an eye on ClassicUO updates and incorporate changes or fixes as they have a wider user base that provides bug reports, but **TazUO** will no longer be merging all changes from ClassicUO.

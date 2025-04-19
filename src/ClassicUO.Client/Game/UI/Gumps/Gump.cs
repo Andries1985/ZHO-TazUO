@@ -2,7 +2,7 @@
 
 // Copyright (c) 2021, andreakarasho
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 // 1. Redistributions of source code must retain the above copyright
@@ -16,7 +16,7 @@
 // 4. Neither the name of the copyright holder nor the
 //    names of its contributors may be used to endorse or promote products
 //    derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -163,25 +163,65 @@ namespace ClassicUO.Game.UI.Gumps
         public void CenterXInScreen()
         {
             Rectangle windowBounds = Client.Game.Window.ClientBounds;
-            X = (windowBounds.Width - Width) / 2;
+            if (ProfileManager.CurrentProfile.GlobalScaling)
+            {
+                float scale = ProfileManager.CurrentProfile.GlobalScale;
+                // Convert physical width to unscaled (logical) width
+                float logicalWidth = windowBounds.Width / scale;
+                // Center in logical coordinates
+                X = (int)((logicalWidth - Width) / 2);
+            }
+            else
+            {
+                X = (windowBounds.Width - Width) / 2;
+            }
         }
 
         public void CenterYInScreen()
         {
             Rectangle windowBounds = Client.Game.Window.ClientBounds;
-            Y = (windowBounds.Height - Height) / 2;
+            if (ProfileManager.CurrentProfile.GlobalScaling)
+            {
+                float scale = ProfileManager.CurrentProfile.GlobalScale;
+                float logicalHeight = windowBounds.Height / scale;
+                Y = (int)((logicalHeight - Height) / 2);
+            }
+            else
+            {
+                Y = (windowBounds.Height - Height) / 2;
+            }
         }
 
         public void CenterXInViewPort()
         {
             var camera = Client.Game.Scene.Camera;
-            X = camera.Bounds.X + ((camera.Bounds.Width - Width) / 2);;
+            if (ProfileManager.CurrentProfile.GlobalScaling)
+            {
+                float scale = ProfileManager.CurrentProfile.GlobalScale;
+                // Compute the camera's physical center, then convert to logical coordinates.
+                float logicalCenterX = (camera.Bounds.X + camera.Bounds.Width / 2f);
+                // Set element X so that its center aligns with the camera's logical center.
+                X = (int)(logicalCenterX - ((Width / scale) / 2f));
+            }
+            else
+            {
+                X = camera.Bounds.X + ((camera.Bounds.Width - Width) / 2);
+            }
         }
 
         public void CenterYInViewPort()
         {
             var camera = Client.Game.Scene.Camera;
-            Y = camera.Bounds.Y + ((camera.Bounds.Height - Height) / 2);
+            if (ProfileManager.CurrentProfile.GlobalScaling)
+            {
+                float scale = ProfileManager.CurrentProfile.GlobalScale;
+                float logicalCenterY = (camera.Bounds.Y + camera.Bounds.Height / 2f);
+                Y = (int)(logicalCenterY - ((Height / scale) / 2f));
+            }
+            else
+            {
+                Y = camera.Bounds.Y + ((camera.Bounds.Height - Height) / 2);
+            }
         }
 
         public void SetInScreen()
@@ -196,8 +236,8 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
-            X = 0;
-            Y = 0;
+            X = (int)MathHelper.Clamp(bounds.X, 0, windowBounds.Width - Width);
+            Y = (int)MathHelper.Clamp(bounds.Y, 0, windowBounds.Height - Height);
         }
 
         public virtual void Restore(XmlElement xml)
@@ -249,6 +289,13 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             Location = position;
+        }
+
+        protected override void OnMove(int x, int y)
+        {
+            base.OnMove(x, y);
+
+            SetInScreen();
         }
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)

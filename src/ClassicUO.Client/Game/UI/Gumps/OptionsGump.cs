@@ -4405,15 +4405,6 @@ namespace ClassicUO.Game.UI.Gumps
                 section.AddRight(_closeHPBarWhenAnchored = AddCheckBox(null, "", _currentProfile.CloseHealthBarIfAnchored, 0, 0));
 
 
-                NiceButton autoLoot;
-                section.Add(autoLoot = new NiceButton(0, 0, 150, TEXTBOX_HEIGHT, ButtonAction.Activate, "Open auto loot options") {  IsSelectable = false, DisplayBorder = true });
-                autoLoot.MouseUp += (s, e) => {
-                    if(e.Button == MouseButtonType.Left)
-                    {
-                        AutoLootOptions.AddToUI();
-                    }
-                };
-
                 rightArea.Add(section);
                 startY += section.Height + SPACING + 30;
             } //Misc
@@ -4440,12 +4431,6 @@ namespace ClassicUO.Game.UI.Gumps
                 section.Add(AddLabel(null, "Tooltip header format (Item name)", 0, 0));
                 section.AddRight(_tooltipHeaderFormat = AddInputField(null, 0, 0, 250, TEXTBOX_HEIGHT));
                 _tooltipHeaderFormat.SetText(_currentProfile.TooltipHeaderFormat);
-
-                NiceButton ttipO = new NiceButton(0, 0, 250, TEXTBOX_HEIGHT, ButtonAction.Activate, "Open tooltip override settings") { IsSelectable = false, DisplayBorder = true };
-                ttipO.SetTooltip("Warning: This is an advanced feature.");
-                ttipO.MouseUp += (s, e) => { UIManager.GetGump<ToolTipOverideMenu>()?.Dispose(); UIManager.Add(new ToolTipOverideMenu()); };
-
-                section.Add(ttipO);
 
                 rightArea.Add(section);
                 startY += section.Height + SPACING;
@@ -5322,7 +5307,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (_currentProfile.EnableCaveBorder != _enableCaveBorder.IsChecked)
             {
-                StaticFilters.CleanCaveTextures();
+                StaticFilters.ApplyStaticBorder();
                 _currentProfile.EnableCaveBorder = _enableCaveBorder.IsChecked;
             }
 

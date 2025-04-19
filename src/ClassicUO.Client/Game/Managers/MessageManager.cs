@@ -89,6 +89,12 @@ namespace ClassicUO.Game.Managers
 
             Profile currentProfile = ProfileManager.CurrentProfile;
 
+            if (textType == TextType.OBJECT)
+            {
+                if (currentProfile.ForceTooltipsOnOldClients && ForcedTooltipManager.IsObjectTextRequested(parent, text, hue))
+                    return;
+            }
+
             EventSink.InvokeRawMessageReceived(parent, new MessageEventArgs
                 (
                     parent,
@@ -343,18 +349,9 @@ namespace ClassicUO.Game.Managers
             }
 
             //Ignored the fixedColor in the textbox creation because it seems to interfere with correct colors, but if issues arrise I left the fixColor code here
+            var options = TextBox.RTLOptions.DefaultCenterStroked(ProfileManager.CurrentProfile.OverheadChatWidth).MouseInput(!ProfileManager.CurrentProfile.DisableMouseInteractionOverheadText);
 
-            textObject.TextBox = new TextBox(
-                    msg,
-                    ProfileManager.CurrentProfile.OverheadChatFont,
-                    ProfileManager.CurrentProfile.OverheadChatFontSize,
-                    ProfileManager.CurrentProfile.OverheadChatWidth,
-                    hue,
-                    FontStashSharp.RichText.TextHorizontalAlignment.Center,
-                    true
-                )
-            { AcceptMouseInput = !ProfileManager.CurrentProfile.DisableMouseInteractionOverheadText };
-
+            textObject.TextBox = TextBox.GetOne(msg, ProfileManager.CurrentProfile.OverheadChatFont, ProfileManager.CurrentProfile.OverheadChatFontSize, hue, options);
             textObject.Time = CalculateTimeToLive(textObject.TextBox);
 
             return textObject;

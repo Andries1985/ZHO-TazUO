@@ -67,12 +67,6 @@ namespace ClassicUO
             CUOEnviroment.GameThread = Thread.CurrentThread;
             CUOEnviroment.GameThread.Name = "CUO_MAIN_THREAD";
 
-#if DEBUG
-            ScriptCompiler.Compile(true, true);
-#else
-            ScriptCompiler.Compile(false, true);
-#endif
-
 #if !DEBUG
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
@@ -80,9 +74,9 @@ namespace ClassicUO
                 sb.AppendLine("######################## [START LOG] ########################");
 
 #if DEV_BUILD
-                sb.AppendLine($"ClassicUO [DEV_BUILD] - {CUOEnviroment.Version} - {DateTime.Now}");
+                sb.AppendLine($"TazUO [DEV_BUILD] - {CUOEnviroment.Version} - {DateTime.Now}");
 #else
-                sb.AppendLine($"ClassicUO [STANDARD_BUILD] - {CUOEnviroment.Version} - {DateTime.Now}");
+                sb.AppendLine($"TazUO [STANDARD_BUILD] - {CUOEnviroment.Version} - {DateTime.Now}");
 #endif
 
                 sb.AppendLine
@@ -103,12 +97,6 @@ namespace ClassicUO
                 sb.AppendLine();
                 sb.AppendLine();
 
-                System.Threading.Tasks.Task reportCrash = System.Threading.Tasks.Task.Factory.StartNew(() =>
-                {
-                    string s = "CV: " + Settings.GlobalSettings.ClientVersion + " - TUO: " + CUOEnviroment.Version.ToString() + "\n" + e.ExceptionObject.ToString();
-                    new CrashReportWebhook().SendMessage(s);
-                });
-
                 Log.Panic(e.ExceptionObject.ToString());
                 string path = Path.Combine(CUOEnviroment.ExecutablePath, "Logs");
 
@@ -119,7 +107,6 @@ namespace ClassicUO
                 {
                     crashfile.WriteAsync(sb.ToString()).RunSynchronously();
                 }
-                reportCrash.Wait();
             };
 #endif
             ReadSettingsFromArgs(args);
@@ -150,8 +137,6 @@ namespace ClassicUO
             CUOEnviroment.IsOutlands = Settings.GlobalSettings.ShardType == 2;
 
             ReadSettingsFromArgs(args);
-
-            UpdateManager.CheckForUpdates();
 
             // still invalid, cannot load settings
             if (Settings.GlobalSettings == null)
@@ -561,9 +546,6 @@ namespace ClassicUO
 
                         break;
 
-                    case "skipupdatecheck":
-                        UpdateManager.SkipUpdateCheck = true;
-                        break;
                 }
             }
         }
