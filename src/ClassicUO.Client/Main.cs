@@ -66,8 +66,7 @@ namespace ClassicUO
 
             CUOEnviroment.GameThread = Thread.CurrentThread;
             CUOEnviroment.GameThread.Name = "CUO_MAIN_THREAD";
-
-#if !DEBUG
+            
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
                 System.Text.StringBuilder sb = new System.Text.StringBuilder();
@@ -96,7 +95,9 @@ namespace ClassicUO
                 sb.AppendLine("######################## [END LOG] ########################");
                 sb.AppendLine();
                 sb.AppendLine();
-
+                
+                HtmlCrashLogGen.Generate(sb.ToString());
+                
                 Log.Panic(e.ExceptionObject.ToString());
                 string path = Path.Combine(CUOEnviroment.ExecutablePath, "Logs");
 
@@ -108,7 +109,7 @@ namespace ClassicUO
                     crashfile.WriteAsync(sb.ToString()).RunSynchronously();
                 }
             };
-#endif
+
             ReadSettingsFromArgs(args);
 
             if (CUOEnviroment.IsHighDPI)
@@ -515,6 +516,21 @@ namespace ClassicUO
 
                         PacketLogger.Default.Enabled = true;
                         PacketLogger.Default.CreateFile();
+
+                        if (!string.IsNullOrEmpty(value))
+                        {
+                            var vals = value.Split(',');
+
+                            foreach (string val in vals)
+                            {
+                                string hex = val.Trim().StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                                    ? val.Trim().Substring(2)
+                                    : val.Trim();
+
+                                if (byte.TryParse(hex, NumberStyles.HexNumber, null, out byte res2))
+                                    PacketLogger.Default.LogPacketID.Add(res2);
+                            }
+                        }
 
                         break;
 

@@ -49,7 +49,9 @@ using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using static SDL2.SDL;
@@ -111,6 +113,7 @@ namespace ClassicUO
 
         protected override void Initialize()
         {
+            AsyncNetClient.MessageReceived += SocketOnMessageReceived;
             if (GraphicManager.GraphicsDevice.Adapter.IsProfileSupported(GraphicsProfile.HiDef))
             {
                 GraphicManager.GraphicsProfile = GraphicsProfile.HiDef;
@@ -125,6 +128,12 @@ namespace ClassicUO
             SDL_SetEventFilter(_filter, IntPtr.Zero);
 
             base.Initialize();
+        }
+
+        private void SocketOnMessageReceived(object sender, byte[] e)
+        {
+            var c = PacketHandlers.Handler.ParsePackets(e);
+            AsyncNetClient.Socket.Statistics.TotalPacketsReceived += (uint)c;
         }
 
         protected override void LoadContent()
@@ -211,10 +220,12 @@ namespace ClassicUO
             loadResourceAssets.Wait(10000);
             SetScene(new LoginScene());
             SetWindowPositionBySettings();
+            DiscordManager.Instance.FromSavedToken();
         }
 
         protected override void UnloadContent()
         {
+            DiscordManager.Instance.BeginDisconnect();
             SDL_GetWindowBordersSize(Window.Handle, out int top, out int left, out _, out _);
 
             Settings.GlobalSettings.WindowPosition = new Point(
@@ -245,6 +256,7 @@ namespace ClassicUO
             SpeechesLoader.Instance.Dispose();
             Verdata.File?.Dispose();
             World.Map?.Destroy();
+            DiscordManager.Instance.FinalizeDisconnect();
 
             base.UnloadContent();
         }
@@ -440,28 +452,34 @@ namespace ClassicUO
             Time.Ticks = (uint)gameTime.TotalGameTime.TotalMilliseconds;
             Time.Delta = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
+            Profiler.EnterContext("Mouse");
             Mouse.Update();
-
-            var data = NetClient.Socket.CollectAvailableData();
-            var packetsCount = PacketHandlers.Handler.ParsePackets(data);
-            NetClient.Socket.Statistics.TotalPacketsReceived += (uint)packetsCount;
-            NetClient.Socket.Flush();
+            Profiler.ExitContext("Mouse");
+            
+            Profiler.EnterContext("Packets");
+            // var data = NetClient.Socket.CollectAvailableData();
+            // var packetsCount = PacketHandlers.Handler.ParsePackets(data);
+            // NetClient.Socket.Statistics.TotalPacketsReceived += (uint)packetsCount;
+            // NetClient.Socket.Flush();
+            AsyncNetClient.Socket.ProcessIncomingMessages();
+            Profiler.ExitContext("Packets");
 
             Plugin.Tick();
 
             if (Scene != null && Scene.IsLoaded && !Scene.IsDestroyed)
             {
-                if (EventSink.GameUpdate != null)
-                {
-                    EventSink.GameUpdate();
-                }
                 Profiler.EnterContext("Update");
                 Scene.Update();
                 Profiler.ExitContext("Update");
             }
 
+            Profiler.EnterContext("UI Update");
             UIManager.Update();
+            Profiler.ExitContext("UI Update");
+            
+            Profiler.EnterContext("LScript");
             LegionScripting.LegionScripting.OnUpdate();
+            Profiler.ExitContext("LScript");
 
             if (Time.Ticks >= _nextSlowUpdate)
             {
@@ -506,6 +524,8 @@ namespace ClassicUO
 
             GameCursor?.Update();
             Audio?.Update();
+            
+            DiscordManager.Instance.Update();
 
             base.Update(gameTime);
         }
@@ -515,6 +535,8 @@ namespace ClassicUO
             if (ProfileManager.CurrentProfile != null)
                 bgHueShader = ShaderHueTranslator.GetHueVector(ProfileManager.CurrentProfile.MainWindowBackgroundHue, false, bgHueShader.Z);
         }
+
+        private Stopwatch drawTimer = new ();
 
         protected override void Draw(GameTime gameTime)
         {
@@ -529,7 +551,6 @@ namespace ClassicUO
             Profiler.EnterContext("RenderFrame");
 
             _totalFrames++;
-
             GraphicsDevice.Clear(Color.Black);
 
             _uoSpriteBatch.Begin();
@@ -566,7 +587,6 @@ namespace ClassicUO
             _uoSpriteBatch.End();
 
             base.Draw(gameTime);
-
             Profiler.ExitContext("RenderFrame");
             Profiler.EnterContext("OutOfContext");
 
@@ -937,7 +957,7 @@ namespace ClassicUO
                     }
 
                 case SDL_EventType.SDL_CONTROLLERBUTTONDOWN:
-                    if (!IsActive)
+                    if (!IsActive || ProfileManager.CurrentProfile == null || !ProfileManager.CurrentProfile.ControllerEnabled)
                     {
                         break;
                     }

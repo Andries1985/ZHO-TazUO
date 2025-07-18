@@ -30,16 +30,21 @@
 
 #endregion
 
+using System;
+using System.IO;
+using System.Net;
+using System.Threading.Tasks;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.Scenes;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
-using ClassicUO.Assets;
+using ClassicUO.LegionScripting;
 using ClassicUO.Network;
 using ClassicUO.Renderer;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
+using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -128,6 +133,8 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 UIManager.Add(new VersionHistory());
                 ProfileManager.CurrentProfile.LastVersionHistoryShown = CUOEnviroment.Version.ToString();
+                
+                LegionScripting.LegionScripting.DownloadAPIPy();
             }
         }
 
@@ -322,8 +329,6 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
-            bool res = base.Draw(batcher, x, y);
-
             if (World.InGame && ProfileManager.CurrentProfile != null && ProfileManager.CurrentProfile.EnableHealthIndicator)
             {
                 float hpPercent = (float)World.Player.Hits / (float)World.Player.HitsMax;
@@ -339,13 +344,13 @@ namespace ClassicUO.Game.UI.Gumps
 
                     batcher.Draw( //Left Bar
                         damageWindowOutline,
-                        new Rectangle(x + BORDER_WIDTH, y + BORDER_WIDTH + size, size, Height - (BORDER_WIDTH * 3) - (size*2)),
+                        new Rectangle(x + BORDER_WIDTH, y + BORDER_WIDTH + size, size, Height - (BORDER_WIDTH * 3) - (size * 2)),
                         DamageWindowOutlineHue
                         );
 
                     batcher.Draw( //Right Bar
                         damageWindowOutline,
-                        new Rectangle(x + Width - (BORDER_WIDTH * 2) - size, y + BORDER_WIDTH + size, size, Height - (BORDER_WIDTH * 3) - (size*2)),
+                        new Rectangle(x + Width - (BORDER_WIDTH * 2) - size, y + BORDER_WIDTH + size, size, Height - (BORDER_WIDTH * 3) - (size * 2)),
                         DamageWindowOutlineHue
                         );
 
@@ -357,7 +362,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             }
 
-            return res;
+            return base.Draw(batcher, x, y);;
         }
     }
 

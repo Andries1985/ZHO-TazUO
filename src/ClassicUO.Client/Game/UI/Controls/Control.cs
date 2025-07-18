@@ -275,34 +275,84 @@ namespace ClassicUO.Game.UI.Controls
         /// <summary>
         /// Used in python API
         /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <param name="w"></param>
+        /// <param name="h"></param>
+        public Control SetRect(int x, int y, int w, int h)
+        {
+            X = x;
+            Y = y;
+            SetWidth(w);
+            SetHeight(h);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Used in python API
+        /// </summary>
         /// <param name="width"></param>
-        public void SetWidth(int width){
+        public Control SetWidth(int width){
             Width = width < 0 ? 0 : width;
+            return this;
         }
 
         /// <summary>
         /// Used in python API
         /// </summary>
         /// <param name="height"></param>
-        public void SetHeight(int height){
+        public Control SetHeight(int height){
             Height = height < 0 ? 0 : height;
+
+            return this;
         }
 
         /// <summary>
         /// Used in python API
         /// </summary>
         /// <param name="x"></param>
-        public void SetX(int x){
+        public Control SetX(int x){
             X = x;
+
+            return this;
         }
 
         /// <summary>
         /// Used in python API
         /// </summary>
         /// <param name="y"></param>
-        public void SetY(int y){
+        public Control SetY(int y){
             Y = y;
+
+            return this;
         }
+
+        /// <summary>
+        /// Use int python API
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        public Control SetPos(int x, int y)
+        {
+            X = x;
+            Y = y;
+
+            return this;
+        }
+
+        /// <summary>
+        /// Used in python API
+        /// </summary>
+        /// <returns>int</returns>
+        public int GetX() => X;
+        
+        /// <summary>
+        /// Used in python API
+        /// </summary>
+        /// <returns>int</returns>
+        public int GetY() => Y;
+        
         public void UpdateOffset(int x, int y)
         {
             if (_offset.X != x || _offset.Y != y)
@@ -623,7 +673,7 @@ namespace ClassicUO.Game.UI.Controls
 
         internal event EventHandler<MouseDoubleClickEventArgs> MouseDoubleClick;
 
-        internal event EventHandler FocusEnter, FocusLost;
+        internal event EventHandler FocusEnter, FocusLost, Disposed;
 
         internal event EventHandler<KeyboardEventArgs> KeyDown, KeyUp;
 
@@ -1060,6 +1110,7 @@ namespace ClassicUO.Game.UI.Controls
 
             IsDisposed = true;
             AfterDispose();
+            Disposed?.Invoke(null, null);
         }
 
         /// <summary>

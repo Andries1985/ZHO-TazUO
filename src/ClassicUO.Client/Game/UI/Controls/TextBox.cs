@@ -40,6 +40,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using ClassicUO.Utility;
 
 namespace ClassicUO.Game.UI.Controls
 {
@@ -58,11 +59,16 @@ namespace ClassicUO.Game.UI.Controls
             {
                 if (ProfileManager.CurrentProfile != null)
                     return ProfileManager.CurrentProfile.TextBorderSize;
+
                 return 1;
             }
         }
 
-        public bool MultiLine { get { return Options.MultiLine; } set { Options.MultiLine = value; } }
+        public bool MultiLine
+        {
+            get { return Options.MultiLine; }
+            set { Options.MultiLine = value; }
+        }
 
         public static TextBox CreateNew(string text, string font, float size, int hue, RTLOptions options)
         {
@@ -83,19 +89,12 @@ namespace ClassicUO.Game.UI.Controls
                 tb.Options = options;
                 tb.AcceptMouseInput = options.AcceptMouseInput;
                 tb.CreateRichTextLayout(text);
-                totalTBUsed++;
-#if DEBUG
-                if (CUOEnviroment.Debug)
-                    Log.Debug($"TextBox Pool Status: [Created: {totalTBCreated}] [Reused: {totalTBUsed}] (Total: {totalTBCreated + totalTBUsed}) [Available: {_pool.Count}]");
-#endif
+
                 return tb;
             }
 
             return new TextBox(text, font, size, hue, options);
         }
-
-        private static int totalTBCreated = 0;
-        private static int totalTBUsed = 0;
 
         private TextBox(string text, string font, float size, Color hue, RTLOptions options)
         {
@@ -105,7 +104,6 @@ namespace ClassicUO.Game.UI.Controls
             Options = options;
             AcceptMouseInput = options.AcceptMouseInput;
             CreateRichTextLayout(text);
-            totalTBCreated++;
         }
 
         /// <summary>
@@ -116,8 +114,15 @@ namespace ClassicUO.Game.UI.Controls
         /// <param name="applyTextFormatting">True will add a stroke, and convert html colors if those are true. Set to false to keep text as is.</param>
         private void CreateRichTextLayout(string text)
         {
+            text ??= string.Empty;  //Prevent null ref error while still updating everything else
             _dirty = false;         //Reset these because we're creating a new text object
             WantUpdateSize = false; //Not resetting them causes this to happen twice from the constructor setting _font and what not.
+
+            if (Options == null)
+            {
+                Log.Error("Options was null when creating rich text layout(TextBox.cs)"); //Avoid a bad textbox object by using default options
+                Options = RTLOptions.Default();
+            }
 
             if (Options.ConvertHtmlColors)
                 text = ConvertHTMLColorsToFSS(text);
@@ -150,8 +155,12 @@ namespace ClassicUO.Game.UI.Controls
             if (hue == 0)
                 hue = 946; //Change black text to standard gray
 
-            return new Color() { PackedValue = HuesLoader.Instance.GetHueColorRgba8888(31, (ushort)hue) };
+            return new Color()
+            {
+                PackedValue = HuesLoader.Instance.GetHueColorRgba8888(31, (ushort)hue)
+            };
         }
+
         public bool PixelCheck(int x, int y)
         {
             if (!AcceptMouseInput || string.IsNullOrWhiteSpace(Text))
@@ -171,6 +180,7 @@ namespace ClassicUO.Game.UI.Controls
 
             return true;
         }
+
         public new int Width
         {
             get
@@ -195,6 +205,7 @@ namespace ClassicUO.Game.UI.Controls
                 _dirty = true;
             }
         }
+
         public new int Height
         {
             get
@@ -205,46 +216,52 @@ namespace ClassicUO.Game.UI.Controls
                 return _rtl.Size.Y;
             }
 
-            set
-            {
-                base.Height = value;
-            }
+            set { base.Height = value; }
         }
+
         public Point MeasuredSize
         {
             get
             {
                 if (_rtl == null)
                     return Point.Zero;
+
                 return _rtl.Size;
             }
         }
+
         public string Text
         {
             get => _rtl.Text;
             set
             {
-                if (_rtl.Text != value)
+                if (_rtl == null)
                 {
-                    if (Options.ConvertHtmlColors)
-                    {
-                        _rtl.Text = ConvertHTMLColorsToFSS(value);
-                    }
-                    else
-                    {
-                        _rtl.Text = value;
-                    }
+                    CreateRichTextLayout(value);
 
-                    _dirty = true;
+                    return;
                 }
+
+                if (_rtl.Text == value)
+                    return;
+
+
+                if (Options.ConvertHtmlColors)
+                    _rtl.Text = ConvertHTMLColorsToFSS(value);
+                else
+                    _rtl.Text = value;
+
+                _dirty = true;
             }
         }
+
         public int Hue
         {
             get => (int)_color.PackedValue;
             set
             {
                 var newVal = HuesLoader.Instance.GetHueColorRgba8888(31, (ushort)value);
+
                 if (_color.PackedValue != newVal)
                 {
                     _color.PackedValue = newVal;
@@ -252,6 +269,7 @@ namespace ClassicUO.Game.UI.Controls
                 }
             }
         }
+
         public Color FontColor
         {
             get => _color;
@@ -261,8 +279,10 @@ namespace ClassicUO.Game.UI.Controls
                 _dirty = true;
             }
         }
+
         public RTLOptions Options { get; set; }
         public RichTextLayout RTL => _rtl;
+
         public string Font
         {
             get => _font;
@@ -272,6 +292,7 @@ namespace ClassicUO.Game.UI.Controls
                 _dirty = true;
             }
         }
+
         public float FontSize
         {
             get => _size;
@@ -280,6 +301,15 @@ namespace ClassicUO.Game.UI.Controls
                 _size = value;
                 _dirty = true;
             }
+        }
+
+        /// <summary>
+        /// Added in for Python API
+        /// </summary>
+        /// <param name="text"></param>
+        public void SetText(string text)
+        {
+            Text = text;
         }
 
         public void Reset()
@@ -297,8 +327,9 @@ namespace ClassicUO.Game.UI.Controls
             _dirty = false;
             WantUpdateSize = false;
         }
-        private static readonly Regex _baseFontColorRegex = new Regex("<basefont color=\"?'?(?<color>.*?)\"?'?>", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-        private static readonly Regex _bodyTextColorRegex = new Regex("<Bodytextcolor\"?'?(?<color>.*?)\"?'?>", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+
+        private static readonly Regex _baseFontColorRegex = RegexHelper.GetRegex("<basefont color=\"?'?(?<color>.*?)\"?'?>", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+        private static readonly Regex _bodyTextColorRegex = RegexHelper.GetRegex("<bodytextcolor\"?'?(?<color>.*?)\"?'?>", RegexOptions.Multiline | RegexOptions.IgnoreCase);
 
         public static string ConvertHTMLColorsToFSS(string text)
         {
@@ -324,30 +355,14 @@ namespace ClassicUO.Game.UI.Controls
 
             string[] replacements = new string[]
             {
-                "<br>", "\n",
-                "<BR>", "\n",
-                "<left>", string.Empty,
-                "</left>", string.Empty,
-                "<b>", string.Empty,
-                "</b>", string.Empty,
-                "</font>", string.Empty,
-                "<font>", string.Empty,
-                "<h2>", string.Empty,
-                "<BODY>", string.Empty,
-                "<body>", string.Empty,
-                "</BODY>", string.Empty,
-                "</body>", string.Empty,
-                "</p>", string.Empty,
-                "<p>", string.Empty,
-                "</BIG>", string.Empty,
-                "<BIG>", string.Empty,
-                "</big>", string.Empty,
-                "<big>", string.Empty,
-                "<basefont>", string.Empty,
-                "<BASEFONT>", string.Empty
+                "<br>", "\n", "<BR>", "\n", "<left>", string.Empty, "</left>", string.Empty, "<b>", string.Empty, "</b>", string.Empty, "</font>", string.Empty, "<font>",
+                string.Empty, "<h2>", string.Empty, "<BODY>", string.Empty, "<body>", string.Empty, "</BODY>", string.Empty, "</body>", string.Empty, "</p>", string.Empty,
+                "<p>", string.Empty, "</BIG>", string.Empty, "<BIG>", string.Empty, "</big>", string.Empty, "<big>", string.Empty, "<basefont>", string.Empty, "<BASEFONT>",
+                string.Empty
             };
 
             StringBuilder sb = new StringBuilder(finalString);
+
             for (int i = 0; i < replacements.Length; i += 2)
                 sb.Replace(replacements[i], replacements[i + 1]);
 
@@ -358,9 +373,9 @@ namespace ClassicUO.Game.UI.Controls
         {
             if (_dirty || WantUpdateSize)
             {
-                var text = _rtl.Text;
+                var text = _rtl.Text ?? string.Empty;
 
-                if (WantUpdateSize)
+                if (WantUpdateSize && Options != null)
                     Options.Width = null;
 
                 CreateRichTextLayout(text);
@@ -372,11 +387,11 @@ namespace ClassicUO.Game.UI.Controls
 
         public override void Dispose()
         {
+            if (IsDisposed)
+                return;
+
             base.Dispose();
-#if DEBUG
-            if (CUOEnviroment.Debug)
-                Log.Debug($"Returned to pool: [{Text}]");
-#endif
+
             Reset();
             _pool.Enqueue(this);
         }
@@ -411,10 +426,30 @@ namespace ClassicUO.Game.UI.Controls
 
         public class RTLOptions
         {
-            public static RTLOptions Default(int? width = null) => new RTLOptions() { Width = width };
-            public static RTLOptions DefaultCentered(int? width = null) => new RTLOptions() { Align = TextHorizontalAlignment.Center, Width = width };
-            public static RTLOptions DefaultRightAligned(int? width = null) => new RTLOptions() { Align = TextHorizontalAlignment.Right, Width = width };
-            public static RTLOptions DefaultCenterStroked(int? width = null) => new RTLOptions() { Align = TextHorizontalAlignment.Center, StrokeEffect = true, Width = width };
+            public static RTLOptions Default(int? width = null) => new RTLOptions()
+            {
+                Width = width
+            };
+
+            public static RTLOptions DefaultCentered(int? width = null) => new RTLOptions()
+            {
+                Align = TextHorizontalAlignment.Center,
+                Width = width
+            };
+
+            public static RTLOptions DefaultRightAligned(int? width = null) => new RTLOptions()
+            {
+                Align = TextHorizontalAlignment.Right,
+                Width = width
+            };
+
+            public static RTLOptions DefaultCenterStroked(int? width = null) => new RTLOptions()
+            {
+                Align = TextHorizontalAlignment.Center,
+                StrokeEffect = true,
+                Width = width
+            };
+
             public bool IgnoreColorCommands { get; set; }
             public bool SupportsCommands { get; set; } = true;
             public bool CalculateGlyphs { get; set; }
@@ -428,26 +463,35 @@ namespace ClassicUO.Game.UI.Controls
             public RTLOptions DisableCommands()
             {
                 SupportsCommands = false;
+
                 return this;
             }
+
             public RTLOptions IgnoreColors()
             {
                 IgnoreColorCommands = true;
+
                 return this;
             }
+
             public RTLOptions EnableGlyphCalculation()
             {
                 CalculateGlyphs = true;
+
                 return this;
             }
+
             public RTLOptions Alignment(TextHorizontalAlignment align)
             {
                 Align = align;
+
                 return this;
             }
+
             public RTLOptions MouseInput(bool accept = true)
             {
                 AcceptMouseInput = accept;
+
                 return this;
             }
         }

@@ -97,6 +97,10 @@ namespace ClassicUO.Game.GameObjects
                 i.AllowedToDraw = true;
                 i.ExecuteAnimation = true;
                 i.HitsRequest = HitsRequestStatus.None;
+                
+                i.ResetOriginalGraphic();
+                i.MatchesHighlightData = false;
+                i.HighlightHue = 0;
             }
         );
 
@@ -107,6 +111,8 @@ namespace ClassicUO.Game.GameObjects
 
         public bool IsCoin => Graphic == 0x0EEA || Graphic == 0x0EED || Graphic == 0x0EF0;
 
+        public bool MatchesHighlightData;
+        public ushort HighlightHue;
         public ushort DisplayedGraphic
         {
             get
@@ -139,6 +145,8 @@ namespace ClassicUO.Game.GameObjects
         }
 
         public bool IsLocked => (Flags & Flags.Movable) == 0 && ItemData.Weight > 90;
+
+        public bool IsMovable => (Flags & Flags.Movable) != 0;
 
         public ushort MultiGraphic { get; private set; }
 
@@ -193,6 +201,28 @@ namespace ClassicUO.Game.GameObjects
                 }
 
                 return SerialHelper.IsMobile(item.Container) ? item.Container : item;
+            }
+        }
+
+        public uint BackpackOrRootContainer
+        {
+            get
+            {
+                Item last;
+                Item item = last = this;
+
+                while (SerialHelper.IsItem(item.Container))
+                {
+                    last = item;
+                    item = World.Items.Get(item.Container);
+
+                    if (item == null)
+                    {
+                        return 0;
+                    }
+                }
+
+                return last;
             }
         }
 

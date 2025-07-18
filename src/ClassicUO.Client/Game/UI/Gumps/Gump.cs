@@ -32,6 +32,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Xml;
 using ClassicUO.Configuration;
 using ClassicUO.Game.GameObjects;
@@ -54,6 +55,8 @@ namespace ClassicUO.Game.UI.Gumps
             AcceptMouseInput = false;
             AcceptKeyboardInput = false;
         }
+
+        public string PacketGumpText { get; set; } = string.Empty;
 
         public bool CanBeSaved => GumpType != Gumps.GumpType.None || ServerSerial != 0;
 
@@ -107,6 +110,7 @@ namespace ClassicUO.Game.UI.Gumps
                     CanMove = true;
                     CanCloseWithRightClick = true;
                 }
+                OnLockedChanged();
             }
         }
 
@@ -227,17 +231,12 @@ namespace ClassicUO.Game.UI.Gumps
         public void SetInScreen()
         {
             Rectangle windowBounds = Client.Game.Window.ClientBounds;
-            Rectangle bounds = Bounds;
-            bounds.X += windowBounds.X;
-            bounds.Y += windowBounds.Y;
 
-            if (windowBounds.Intersects(bounds))
-            {
-                return;
-            }
+            int newX = (int)MathHelper.Clamp(X, 0, windowBounds.Width - Width);
+            int newY = (int)MathHelper.Clamp(Y, 0, windowBounds.Height - Height);
 
-            X = (int)MathHelper.Clamp(bounds.X, 0, windowBounds.Width - Width);
-            Y = (int)MathHelper.Clamp(bounds.Y, 0, windowBounds.Height - Height);
+            X = newX;
+            Y = newY;
         }
 
         public virtual void Restore(XmlElement xml)
@@ -296,6 +295,10 @@ namespace ClassicUO.Game.UI.Gumps
             base.OnMove(x, y);
 
             SetInScreen();
+        }
+
+        protected virtual void OnLockedChanged()
+        {
         }
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)

@@ -5,6 +5,11 @@
 
 # Commands
 
+## `togglescript`  
+Toggle another script playing  
+Example:  
+`togglescript 'myscript.lscript'` or `togglescript myscript.py`
+
 ## `msg`
 
 `msg` *text*  
@@ -751,8 +756,8 @@ Example: `if nearestcorpse`
 
 - `name` 
 - `hits`, `maxhits`, `diffhits` <-- These support a 'serial' parameter
-- `stam`, `maxstam`  
-- `mana`, `maxmana`  
+- `stam`, `maxstam`, `diffstam`  
+- `mana`, `maxmana`, `diffmana`  
 - `x`, `y`, `z`  
 - `str`, `dex`, `int`
 - `followers`, `maxfollowers`

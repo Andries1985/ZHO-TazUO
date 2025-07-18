@@ -117,6 +117,8 @@ namespace ClassicUO.Game.Scenes
 
         private bool MoveCharByController()
         {
+            if(ProfileManager.CurrentProfile == null || !ProfileManager.CurrentProfile.ControllerEnabled) return false;
+            
             const float THRESHOLD = 0.3f;
 
             Microsoft.Xna.Framework.Input.GamePadState gamePadState = Microsoft.Xna.Framework.Input.GamePad.GetState(PlayerIndex.One);
@@ -1326,6 +1328,8 @@ namespace ClassicUO.Game.Scenes
             {
                 return;
             }
+            
+            SpellBarManager.KeyPress(e.keysym.sym, e.keysym.mod);
 
             if (e.keysym.sym == SDL.SDL_Keycode.SDLK_ESCAPE && TargetManager.IsTargeting)
             {
@@ -1358,7 +1362,7 @@ namespace ClassicUO.Game.Scenes
 
                             if (!World.Player.InWarMode)
                             {
-                                NetClient.Socket.Send_ChangeWarMode(true);
+                                AsyncNetClient.Socket.Send_ChangeWarMode(true);
                             }
                         }
                     }
@@ -1684,7 +1688,7 @@ namespace ClassicUO.Game.Scenes
                 {
                     if (_requestedWarMode)
                     {
-                        NetClient.Socket.Send_ChangeWarMode(false);
+                        AsyncNetClient.Socket.Send_ChangeWarMode(false);
                         _requestedWarMode = false;
                     }
                 }
@@ -1700,6 +1704,8 @@ namespace ClassicUO.Game.Scenes
         internal override void OnControllerButtonDown(SDL.SDL_ControllerButtonEvent e)
         {
             base.OnControllerButtonDown(e);
+            
+            SpellBarManager.ControllerInput((SDL.SDL_GameControllerButton)e.button);
 
             if (World.InGame && (UIManager.KeyboardFocusControl == UIManager.SystemChat.TextBoxControl || UIManager.KeyboardFocusControl == null))
             {

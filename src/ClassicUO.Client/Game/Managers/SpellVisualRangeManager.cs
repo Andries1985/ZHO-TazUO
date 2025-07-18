@@ -14,7 +14,16 @@ using System.Threading.Tasks;
 
 namespace ClassicUO.Game.Managers
 {
-    internal class SpellVisualRangeManager
+    using System.Text.Json.Serialization;
+    using ClassicUO.Utility.Logging;
+
+    [JsonSerializable(typeof(SpellVisualRangeManager.SpellRangeInfo))]
+    [JsonSerializable(typeof(SpellVisualRangeManager.SpellRangeInfo[]))]
+    public partial class SpellVisualRangeJsonContext : JsonSerializerContext
+    {
+    }
+    
+    public class SpellVisualRangeManager
     {
         public static SpellVisualRangeManager Instance => instance ??= new SpellVisualRangeManager();
 
@@ -55,7 +64,7 @@ namespace ClassicUO.Game.Managers
 
         private void OnRawMessageReceived(object sender, MessageEventArgs e)
         {
-            Task.Factory.StartNew(() =>
+            Task.Run(() =>
             {
                 if (loaded && e.Parent != null && ReferenceEquals(e.Parent, World.Player))
                 {
@@ -87,6 +96,7 @@ namespace ClassicUO.Game.Managers
             {
                 World.Player.Flags |= Flags.Frozen;
             }
+            EventSink.InvokeSpellCastBegin(spell.ID);
         }
 
         public void ClearCasting()
@@ -231,16 +241,34 @@ namespace ClassicUO.Game.Managers
             {
                 if (!File.Exists(savePath))
                 {
-                    CreateAndLoadDataFile();
+                    //CreateAndLoadDataFile();
+                    var assembly = GetType().Assembly;
+
+                    var resourceName = assembly.GetName().Name + ".Game.Managers.DefaultSpellIndicatorConfig.json";
+                    try
+                    {
+                        using Stream stream = assembly.GetManifestResourceStream(resourceName);
+
+                        using StreamReader reader = new StreamReader(stream);
+
+                        LoadFromString(reader.ReadToEnd());
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error(e.ToString());
+                        CreateAndLoadDataFile();
+                    }
+
                     AfterLoad();
                     loaded = true;
+                    Save();
                 }
                 else
                 {
                     try
                     {
                         string data = File.ReadAllText(savePath);
-                        SpellRangeInfo[] fileData = JsonSerializer.Deserialize<SpellRangeInfo[]>(data);
+                        SpellRangeInfo[] fileData = JsonSerializer.Deserialize(data, SpellVisualRangeJsonContext.Default.SpellRangeInfoArray);
 
                         foreach (var entry in fileData)
                         {
@@ -254,6 +282,7 @@ namespace ClassicUO.Game.Managers
                         CreateAndLoadDataFile();
                         AfterLoad();
                         loaded = true;
+                        Save();
                     }
 
                 }
@@ -436,6 +465,7 @@ namespace ClassicUO.Game.Managers
             public double CastTime { get; set; } = 0.0;
             public bool ShowCastRangeDuringCasting { get; set; } = false;
             public bool FreezeCharacterWhileCasting { get; set; } = false;
+            public bool ExpectTargetCursor { get; set; } = false;
 
             public static SpellRangeInfo FromSpellDef(SpellDefinition spell)
             {

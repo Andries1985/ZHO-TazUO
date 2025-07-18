@@ -147,7 +147,7 @@ namespace ClassicUO.Game.UI.Controls
                         }
                         else
                         {
-                            htmlColor = (HuesHelper.Color16To32((ushort) hue) << 8) | 0xFF;
+                            htmlColor = (HuesHelper.Color16To32((ushort)hue) << 8) | 0xFF;
                         }
                     }
                     else if (!HasBackground)
@@ -170,7 +170,7 @@ namespace ClassicUO.Game.UI.Controls
                 }
                 else
                 {
-                    _gameText.Hue = (ushort) hue;
+                    _gameText.Hue = (ushort)hue;
                 }
 
                 _gameText.HasBackgroundColor = !HasBackground;
@@ -183,35 +183,35 @@ namespace ClassicUO.Game.UI.Controls
                 (
                     new ResizePic(0x2486)
                     {
-                        Width = Width - (HasScrollbar ? 16 : 0), Height = Height, AcceptMouseInput = false
+                        Width = Width - (HasScrollbar ? 16 : 0),
+                        Height = Height,
+                        AcceptMouseInput = false
                     }
                 );
             }
 
-            if (HasScrollbar)
+            if (UseFlagScrollbar)
             {
-                if (UseFlagScrollbar)
+                _scrollBar = new ScrollFlag
                 {
-                    _scrollBar = new ScrollFlag
-                    {
-                        Location = new Point(Width - 14, 0)
-                    };
-                }
-                else
-                {
-                    _scrollBar = new ScrollBar(Width - 14, 0, Height);
-                }
-
-                _scrollBar.Height = Height;
-                _scrollBar.MinValue = 0;
-
-                _scrollBar.MaxValue = /* _gameText.Height*/ /* Children.Sum(s => s.Height) - Height +*/
-                    _gameText.Height - Height + (HasBackground ? 8 : 0);
-
-                ScrollY = _scrollBar.Value;
-
-                Add(_scrollBar);
+                    Location = new Point(Width - 14, 0),
+                };
             }
+            else
+            {
+                _scrollBar = new ScrollBar(Width - 14, 0, Height);
+            }
+
+            _scrollBar.IsVisible = HasScrollbar;
+            _scrollBar.Height = Height;
+            _scrollBar.MinValue = 0;
+
+            _scrollBar.MaxValue = /* _gameText.Height*/ /* Children.Sum(s => s.Height) - Height +*/
+                _gameText.Height - Height + (HasBackground ? 8 : 0);
+
+            ScrollY = _scrollBar.Value;
+
+            Add(_scrollBar);
 
             //if (Width != _gameText.Width)
             //    Width = _gameText.Width;
@@ -219,11 +219,6 @@ namespace ClassicUO.Game.UI.Controls
 
         protected override void OnMouseWheel(MouseEventType delta)
         {
-            if (!HasScrollbar)
-            {
-                return;
-            }
-
             switch (delta)
             {
                 case MouseEventType.WheelScrollUp:
@@ -240,20 +235,23 @@ namespace ClassicUO.Game.UI.Controls
 
         public override void Update()
         {
-            if (HasScrollbar)
+            if (WantUpdateSize)
             {
-                if (WantUpdateSize)
+                if(_scrollBar != null && _gameText != null)
                 {
                     _scrollBar.Height = Height;
                     _scrollBar.MinValue = 0;
 
                     _scrollBar.MaxValue = /* _gameText.Height*/ /*Children.Sum(s => s.Height) - Height */
                         _gameText.Height - Height + (HasBackground ? 8 : 0);
-
-                    //_scrollBar.IsVisible = _scrollBar.MaxValue > _scrollBar.MinValue;
-                    WantUpdateSize = false;
                 }
 
+                //_scrollBar.IsVisible = _scrollBar.MaxValue > _scrollBar.MinValue;
+                WantUpdateSize = false;
+            }
+
+            if (_scrollBar != null)
+            {
                 ScrollY = _scrollBar.Value;
             }
 
@@ -276,7 +274,7 @@ namespace ClassicUO.Game.UI.Controls
                 _gameText.Draw
                 (
                     batcher,
-                    x + offset, 
+                    x + offset,
                     y + offset,
                     ScrollX,
                     ScrollY,
@@ -302,7 +300,7 @@ namespace ClassicUO.Game.UI.Controls
                         WebLinkRect link = _gameText.Links[i];
 
                         bool inbounds = link.Bounds.Contains(x, (_scrollBar == null ? 0 : _scrollBar.Value) + y);
-                        
+
                         if (inbounds && FontsLoader.Instance.GetWebLink(link.LinkID, out WebLink result))
                         {
                             Log.Info("LINK CLICKED: " + result.Link);

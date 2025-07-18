@@ -328,6 +328,7 @@ namespace ClassicUO.Network
             Handler.Add(0xF5, DisplayMap);
             Handler.Add(0xF6, BoatMoving);
             Handler.Add(0xF7, PacketList);
+            Handler.Add(EnhancedPacketHandler.EPID, EnhancedPacketHandler.Handle); //For handling custom packets
 
             // login
             Handler.Add(0xA8, ServerListReceived);
@@ -2115,14 +2116,17 @@ namespace ClassicUO.Network
                             if (isSingleUpdate)
                             {
                                 float change = realVal / 10.0f - skill.Value;
+                                int deltaThreshold = ProfileManager.CurrentProfile?.ShowSkillsChangedDeltaValue ?? 0;
 
                                 if (
                                     change != 0.0f
                                     && !float.IsNaN(change)
                                     && ProfileManager.CurrentProfile != null
                                     && ProfileManager.CurrentProfile.ShowSkillsChangedMessage
-                                    && Math.Abs(change * 10)
-                                        >= ProfileManager.CurrentProfile.ShowSkillsChangedDeltaValue
+                                    && (
+                                        deltaThreshold <= 0
+                                        || skill.ValueFixed / deltaThreshold != realVal / deltaThreshold
+                                    )
                                 )
                                 {
                                     GameActions.Print(
@@ -2982,6 +2986,9 @@ namespace ClassicUO.Network
 
                 UIManager.GetGump<PaperDollGump>(serial)?.RequestUpdateContents();
                 UIManager.GetGump<ModernPaperdoll>(serial)?.RequestUpdateContents();
+                
+                if(mob.Serial == World.Player.Serial)
+                    GameActions.RequestEquippedOPL();
             }
 
             if (p[0] != 0x78)
@@ -3045,6 +3052,7 @@ namespace ClassicUO.Network
 
                 UIManager.GetGump<PaperDollGump>(serial)?.RequestUpdateContents();
                 UIManager.GetGump<ModernPaperdoll>(serial)?.RequestUpdateContents();
+                GameActions.RequestEquippedOPL();
 
                 World.Player.UpdateAbilities();
             }
@@ -3179,6 +3187,7 @@ namespace ClassicUO.Network
                 {
                     UIManager.Add(new ModernPaperdoll(mobile.Serial));
                 }
+                GameActions.RequestEquippedOPL();
             }
             else
             {
@@ -5024,7 +5033,7 @@ namespace ClassicUO.Network
                 if (p.ReadBool())
                 {
                     // client can disconnect
-                    NetClient.Socket.Disconnect();
+                    NetClient.Socket.Disconnect().Wait();
                     Client.Game.SetScene(new LoginScene());
                 }
                 else
@@ -5504,10 +5513,13 @@ namespace ClassicUO.Network
             uint clen = p.ReadUInt32BE() - 4;
             int dlen = (int)p.ReadUInt32BE();
             if (dlen < 1)
-                dlen = 1;
+            {
+                Log.Error("[Initial]A bad compressed gump packet was received. Unable to process.");
+                return;
+            }
             byte[] decData = System.Buffers.ArrayPool<byte>.Shared.Rent(dlen);
             string layout;
-
+            
             try
             {
                 unsafe
@@ -5524,18 +5536,26 @@ namespace ClassicUO.Network
             {
                 System.Buffers.ArrayPool<byte>.Shared.Return(decData);
             }
-
-            p.Skip((int)clen);
-
-            uint linesNum = p.ReadUInt32BE();
-            string[] lines = new string[linesNum];
-
+            
             try
             {
+                p.Skip((int)clen);
+
+                uint linesNum = p.ReadUInt32BE();
+                string[] lines = new string[linesNum];
+
                 if (linesNum != 0)
                 {
                     clen = p.ReadUInt32BE() - 4;
                     dlen = (int)p.ReadUInt32BE();
+
+                    if (dlen < 1)
+                    {
+                        Log.Error("A bad compressed gump packet was received. Unable to process.");
+
+                        return;
+                    }
+
                     decData = System.Buffers.ArrayPool<byte>.Shared.Rent(dlen);
 
                     try
@@ -5544,13 +5564,7 @@ namespace ClassicUO.Network
                         {
                             fixed (byte* destPtr = decData)
                             {
-                                ZLib.Decompress(
-                                    p.PositionAddress,
-                                    (int)clen,
-                                    0,
-                                    (IntPtr)destPtr,
-                                    dlen
-                                );
+                                ZLib.Decompress(p.PositionAddress, (int)clen, 0, (IntPtr)destPtr, dlen);
                             }
                         }
 
@@ -5610,6 +5624,10 @@ namespace ClassicUO.Network
                 }
 
                 CreateGump(sender, gumpID, (int)x, (int)y, layout, lines);
+            }
+            catch (Exception e)
+            {
+                HtmlCrashLogGen.Generate($"DLEN: {dlen}\nSENDER: {sender}\nGUMPID: {gumpID}\n" + e.ToString(), description:"TazUO almost crashed, it was prevented but this was put in place for debugging, please post this on our discord.");
             }
             finally
             {
@@ -6235,7 +6253,8 @@ namespace ClassicUO.Network
                 Log.Warn("AddItemToContainer function adds mobile as Item");
             }
 
-            if (item != null && (container.Graphic != 0x2006 || item.Layer == Layer.Invalid))
+            //Added item.Container != containerSerial to prevent closing containers when changing facets
+            if (item != null && item.Container != containerSerial && (container.Graphic != 0x2006 || item.Layer == Layer.Invalid))
             {
                 World.RemoveItem(item, true);
             }
@@ -6249,8 +6268,14 @@ namespace ClassicUO.Network
             item.Y = y;
             item.Z = 0;
 
-            World.RemoveItemFromContainer(item);
-            item.Container = containerSerial;
+            //Added item.Container != containerSerial to prevent closing containers when changing facets
+            //Shouldn't need to remove it just to add it back in
+            if (item.Container != containerSerial)
+            {
+                World.RemoveItemFromContainer(item);
+                item.Container = containerSerial;
+            }
+            
             container.PushToBack(item);
 
             if (SerialHelper.IsMobile(containerSerial))
@@ -6755,6 +6780,8 @@ namespace ClassicUO.Network
                     IsFromServer = true
                 };
             }
+            
+            gump.PacketGumpText = string.Join("\n", lines);
 
             int group = 0;
             int page = 0;
@@ -6771,6 +6798,7 @@ namespace ClassicUO.Network
                 }
 
                 string entry = gparams[0];
+                gump.PacketGumpText += string.Join(" ", gparams) + "\n";
 
                 if (string.Equals(entry, "button", StringComparison.InvariantCultureIgnoreCase))
                 {
@@ -6812,6 +6840,7 @@ namespace ClassicUO.Network
                     gump.Add(new CroppedText(gparams, lines), page);
                 }
                 else if (
+                    string.Equals(entry, "tilepicasgumppic", StringComparison.InvariantCultureIgnoreCase) ||
                     string.Equals(entry, "gumppic", StringComparison.InvariantCultureIgnoreCase)
                 )
                 {
@@ -7242,13 +7271,26 @@ namespace ClassicUO.Network
                 {
                     gump.MasterGumpSerial = gparams.Count > 0 ? SerialHelper.Parse(gparams[1]) : 0;
                 }
-                else if (
-                    string.Equals(entry, "picinpic", StringComparison.InvariantCultureIgnoreCase)
-                )
+                else if (string.Equals(entry, "picinpichued", StringComparison.InvariantCultureIgnoreCase) ||
+                         string.Equals(entry, "picinpicphued", StringComparison.InvariantCultureIgnoreCase) ||
+                         string.Equals(entry, "picinpic", StringComparison.InvariantCultureIgnoreCase)
+                        )
                 {
                     if (gparams.Count > 7)
                     {
-                        gump.Add(new GumpPicInPic(gparams), page);
+                        //gump.Add(new GumpPicInPic(gparams), page);
+                        GumpPicInPic g;
+                        gump.Add(g = new GumpPicInPic(gparams), page);
+
+                        if (gparams.Count > 8)
+                        {
+                            g.Hue = UInt16Converter.Parse(gparams[8]);
+
+                            if (string.Equals(entry, "picinpicphued", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                g.IsPartialHue = true;
+                            }
+                        }
                     }
                 }
                 else if (string.Equals(entry, "\0", StringComparison.InvariantCultureIgnoreCase))
@@ -7368,6 +7410,12 @@ namespace ClassicUO.Network
             {
                 World.Player.HasGump = true;
                 World.Player.LastGumpID = gumpID;
+            }
+
+            if (gump.X == 0 && gump.Y == 0)
+            {
+                gump.CenterXInViewPort();
+                gump.CenterYInViewPort();
             }
 
             return gump;

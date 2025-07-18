@@ -42,6 +42,7 @@ namespace ClassicUO.Game.UI.Controls
 {
     public abstract class GumpPicBase : Control
     {
+        public bool IsPartialHue { get; set; }
         private ushort _graphic;
 
         protected GumpPicBase()
@@ -146,7 +147,7 @@ namespace ClassicUO.Game.UI.Controls
         }
     }
 
-    internal class GumpPic : GumpPicBase
+    public class GumpPic : GumpPicBase
     {
         public GumpPic(int x, int y, ushort graphic, ushort hue)
         {
@@ -174,8 +175,7 @@ namespace ClassicUO.Game.UI.Controls
                 )
             )
         { }
-
-        public bool IsPartialHue { get; set; }
+        
         public bool ContainsByBounds { get; set; }
         public bool IsVirtue { get; set; }
 

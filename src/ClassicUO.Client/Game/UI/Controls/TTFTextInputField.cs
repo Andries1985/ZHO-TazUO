@@ -18,7 +18,7 @@ namespace ClassicUO.Game.UI.Controls
 
         public event EventHandler TextChanged { add { TextBox.TextChanged += value; } remove { TextBox.TextChanged -= value; } }
         public new event EventHandler<KeyboardEventArgs> KeyDown { add { TextBox.KeyDown += value; } remove { TextBox.KeyDown -= value; } }
-
+        public event EventHandler EnterPressed;
         public int CaretIndex { get { return TextBox.CaretIndex; } }
         public bool ConvertHtmlColors { get { return TextBox.ConvertHtmlColors; } set { TextBox.ConvertHtmlColors = value; } }
         public TTFTextInputField
@@ -69,6 +69,15 @@ namespace ClassicUO.Game.UI.Controls
 
             return true;
         }
+        
+        /// <summary>
+        /// Set to null to remove placeholder
+        /// </summary>
+        /// <param name="text"></param>
+        public void SetPlaceholder(string text)
+        {
+            TextBox.SetPlaceholder(text);
+        }
 
         private void UpdateBackground()
         {
@@ -102,12 +111,19 @@ namespace ClassicUO.Game.UI.Controls
         {
             TextBox.SetText(text);
         }
+        
+        public override void OnKeyboardReturn(int textID, string text)
+        {
+            base.OnKeyboardReturn(textID, text);
+            EnterPressed?.Invoke(this, EventArgs.Empty);
+        }
 
         public class StbTextBox : Control, ITextEditHandler
         {
             protected static readonly Color SELECTION_COLOR = new Color() { PackedValue = 0x80a06020 };
             private const int FONT_SIZE = 20;
             private readonly int _maxCharCount = -1;
+            private TextBox _placeHolder;
 
             public bool ConvertHtmlColors { get { return _rendererText.Options.ConvertHtmlColors; } set { _rendererText.Options.ConvertHtmlColors = value; } }
 
@@ -126,6 +142,7 @@ namespace ClassicUO.Game.UI.Controls
                 _maxCharCount = max_char_count;
 
                 Stb = new TextEdit(this);
+                
                 Stb.SingleLine = !multiline;
                 _rendererText = Controls.TextBox.GetOne(string.Empty, TrueTypeLoader.EMBEDDED_FONT, FONT_SIZE, Color.White,
                     new TextBox.RTLOptions() { Width = maxWidth > 0 ? maxWidth : null, SupportsCommands = false, IgnoreColorCommands = true, CalculateGlyphs = true, MultiLine = true });
@@ -138,6 +155,23 @@ namespace ClassicUO.Game.UI.Controls
 
             protected TextEdit Stb { get; }
 
+            /// <summary>
+            /// Set to null to remove placeholder
+            /// </summary>
+            /// <param name="text"></param>
+            public void SetPlaceholder(string text)
+            {
+                if (text == null)
+                {
+                    _placeHolder?.Dispose();
+
+                    return;
+                }
+                
+                _placeHolder = Controls.TextBox.GetOne(text, TrueTypeLoader.EMBEDDED_FONT, FONT_SIZE, Color.Gray, Controls.TextBox.RTLOptions.Default());
+                _placeHolder.Alpha = 0.75f;
+            }
+            
             public void UpdateSize(int width, int height)
             {
                 Width = width;
@@ -872,9 +906,18 @@ namespace ClassicUO.Game.UI.Controls
                 if (batcher.ClipBegin(x, y, Width, Height))
                 {
                     base.Draw(batcher, x, y);
-                    DrawSelection(batcher, slideX, y);
-                    _rendererText.Draw(batcher, slideX, y);
-                    DrawCaret(batcher, slideX, y);
+
+                    if (!IsFocused && string.IsNullOrEmpty(_rendererText.Text) && _placeHolder != null)
+                    {
+                        _placeHolder.Draw(batcher, slideX, y);
+                    }
+                    else
+                    {
+                        DrawSelection(batcher, slideX, y);
+                        _rendererText.Draw(batcher, slideX, y);
+                        DrawCaret(batcher, slideX, y);
+                    }
+                    
                     batcher.ClipEnd();
                 }
 
@@ -930,6 +973,7 @@ namespace ClassicUO.Game.UI.Controls
             {
                 _rendererText?.Dispose();
                 _rendererCaret?.Dispose();
+                _placeHolder?.Dispose();
 
                 base.Dispose();
             }

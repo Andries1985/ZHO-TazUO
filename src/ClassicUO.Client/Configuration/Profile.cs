@@ -46,6 +46,9 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Xml;
+using ClassicUO.Game.UI;
+using ClassicUO.Game.UI.Gumps.GridHighLight;
+using ClassicUO.Game.UI.Gumps.SpellBar;
 
 namespace ClassicUO.Configuration
 {
@@ -178,7 +181,7 @@ namespace ClassicUO.Configuration
         public bool PathfindSingleClick { get; set; }
         public bool AlwaysRun { get; set; } = true;
         public bool AlwaysRunUnlessHidden { get; set; } = true;
-        public bool HoldDownKeyTab { get; set; } = true;
+        public bool HoldDownKeyTab { get; set; }
         public bool HoldShiftForContext { get; set; } = false;
         public bool HoldShiftToSplitStack { get; set; } = false;
 
@@ -199,7 +202,7 @@ namespace ClassicUO.Configuration
         public int LightLevelType { get; set; } // 0 = absolute, 1 = minimum
         public bool UseColoredLights { get; set; } = true;
         public bool UseDarkNights { get; set; }
-        public int CloseHealthBarType { get; set; } // 0 = none, 1 == not exists, 2 == is dead
+        public int CloseHealthBarType { get; set; } = 2; // 0 = none, 1 == not exists, 2 == is dead
         public bool ActivateChatAfterEnter { get; set; }
         public bool ActivateChatAdditionalButtons { get; set; } = true;
         public bool ActivateChatShiftEnterSupport { get; set; } = true;
@@ -366,8 +369,11 @@ namespace ClassicUO.Configuration
 
         public bool DisableSystemChat { get; set; } = false;
 
+        public uint SetFavoriteMoveBagSerial { get; set; } = 0;
+
         #region GRID CONTAINER
         public bool UseGridLayoutContainerGumps { get; set; } = true;
+        public bool GridContainersDefaultToOldStyleView { get; set; } = false;
         public int GridContainerSearchMode { get; set; } = 1;
         public bool EnableGridContainerAnchor { get; set; } = false;
         public byte GridBorderAlpha { get; set; } = 75;
@@ -423,7 +429,19 @@ namespace ClassicUO.Configuration
         public List<List<string>> GridHighlight_PropNames { get; set; } = new List<List<string>>();
         public List<List<int>> GridHighlight_PropMinVal { get; set; } = new List<List<int>>();
         public bool GridHighlight_CorpseOnly { get; set; } = false;
-        public int GridHightlightSize { get; set; } = 1;
+        public int GridHighlightSize { get; set; } = 1;
+        public List<bool> GridHighlight_AcceptExtraProperties { get; set; } = new List<bool>();
+        public List<List<bool>> GridHighlight_IsOptionalProperties { get; set; } = new List<List<bool>>();
+        public List<List<string>> GridHighlight_ExcludeNegatives { get; set; } = new List<List<string>>();
+        public List<List<string>> GridHighlight_RequiredRarities { get; set; } = new();
+        public List<GridHighlightSetupEntry> GridHighlightSetup { get; set; } = new();
+        public List<string> ConfigurableProperties { get; set; } = new();
+        public List<string> ConfigurableResistances { get; set; } = new();
+        public List<string> ConfigurableNegatives { get; set; } = new();
+        public List<string> ConfigurableSuperSlayers { get; set; } = new();
+        public List<string> ConfigurableSlayers { get; set; } = new();
+        public List<string> ConfigurableRarities { get; set; } = new();
+
         #endregion
 
         #region Modern paperdoll
@@ -479,6 +497,10 @@ namespace ClassicUO.Configuration
 
         public string NamePlateFont { get; set; } = "avadonian";
         public int NamePlateFontSize { get; set; } = 20;
+        
+        public string OptionsFont { get; set; } = "Roboto-Regular";
+        public int OptionsFontSize { get; set; } = 18;
+        
         public int TextBorderSize { get; set; } = 1;
 
         public bool UseModernShopGump { get; set; } = false;
@@ -486,6 +508,7 @@ namespace ClassicUO.Configuration
         public int MaxJournalEntries { get; set; } = 250;
         public bool HideJournalBorder { get; set; } = false;
         public bool HideJournalTimestamp { get; set; } = false;
+        public bool HideJournalSystemPrefix { get; set; } = false;
 
         public int HealthLineSizeMultiplier { get; set; } = 1;
 
@@ -599,11 +622,21 @@ namespace ClassicUO.Configuration
         public float GlobalScale { get; set; } = 1.5f;
         public ushort TurnDelay { get; set; } = 100;
         public bool SellAgentEnabled { get; set; }
+        public int SellAgentMaxUniques { get; set; } = 50;
+        public int SellAgentMaxItems { get; set; } = 0;
         public bool BuyAgentEnabled { get; set; }
         public bool DisableTargetingGridContainers { get; set; }
+        public bool ControllerEnabled { get; set; } = true;
+        public bool EnableScavenger { get; set; } = true;
+        public bool CounterGumpLocked { get; set; }
+        public bool NearbyLootConcealsContainerOnOpen { get; set; } = true;
 
+        private long lastSave;
         public void Save(string path, bool saveGumps = true)
         {
+            if (Time.Ticks - lastSave < 10) //Don't save if saved in the last 10 ms, prevent duplcate saving when exiting game with options menu open
+                return;
+            
             Log.Trace($"Saving path:\t\t{path}");
 
             // Save profile settings
@@ -614,6 +647,7 @@ namespace ClassicUO.Configuration
                 SaveGumps(path);
 
             Log.Trace("Saving done!");
+            lastSave = Time.Ticks;
         }
 
         public void SaveAsFile(string path, string filename)
@@ -797,6 +831,8 @@ namespace ClassicUO.Configuration
 
                             switch (type)
                             {
+                                case GumpType.SpellBar: gump = new SpellBar(); break;
+                                case GumpType.NearbyCorpseLoot: gump = new NearbyLootGump(); break;
                                 case GumpType.Buff:
                                     if (ProfileManager.CurrentProfile.UseImprovedBuffBar)
                                         gump = new ImprovedBuffGump();

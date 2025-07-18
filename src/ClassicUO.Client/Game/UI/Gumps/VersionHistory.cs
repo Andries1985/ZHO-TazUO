@@ -8,6 +8,46 @@ namespace ClassicUO.Game.UI.Gumps
     internal class VersionHistory : Gump
     {
         private static string[] updateTexts = {
+            "/c[white][3.33.0]/cd\n" +
+            "- Prevent autoloot, move item queue from moving items while you are holding something.\n" +
+            "- Change multi item move to use shared move item queue\n" +
+            "- Prevent closing containers when changing facets\n" +
+            "- Added Create macro button for legion scripts\n" +
+            "- Potential Crash fix from CUO\n" +
+            "- Python API changes\n" +
+            "- Change how skill message frequency option works - fuzzlecutter\n" +
+            "- Added an option to default to old container style with the option to switch to grid container style\n" +
+            "- Added option to remove System prefix in journal\n" +
+            "- Minor bug fixes\n" +
+            "- Spellbar!\n" +
+            "- Implemented Async networking\n",
+            
+            "/c[white][3.32.0]/cd\n" +
+            "- Added simple progress bar control for Python API gumps.\n" +
+            "- Generate user friendly html crash logs and open them on crash\n" +
+            "- Some fixes for nearby corpse loot gump\n" +
+            "- Very slightly increased minimum distance to start dragging a gump. Hopefully it should prevent accidental drags instead of clicks\n" +
+            "- Nearby loot gump now stays open after relogging\n" +
+            "- Moved some assistant-like options to their own menu.\n" +
+            "- XML Gumps save locked status now(Ctrl + Alt + Click to lock)\n" +
+            "- Python API created gumps will automatically close when the script stops, unless marked keep open." +
+            "- Various bug fixes\n",
+            
+            "/c[white][3.31.0]/cd\n" +
+            "- Fix for Python API EquipItem\n" +
+            "- Fix for legion scripting useability commands\n" +
+            "- Added basic scavenger agent(Uses autoloot)\n" +
+            "- Nearby item gump and grid container quick loot now use move item queue\n" +
+            "- Combine duplicate system messages\n" +
+            "- Default visual spell indicator setup embedded now\n" +
+            "- Various bug fixes\n",
+            
+            "/c[white][3.30.0]/cd\n" +
+            "- Implementing Discord Social features\n" +
+            "- Added more python API methods\n" +
+            "- Better python API error handling\n" +
+            "- Other minor bug fixes",
+            
             "/c[white][3.29.0]/cd\n" +
                 "- Moved tooltip override options into main menu\n"+
                 "- Expanded Python API\n"+
@@ -16,7 +56,11 @@ namespace ClassicUO.Game.UI.Gumps
                 "- Fixed a bug in tooltips, likely not noticable but should be a significant performance boost while a tooltip is shown.\n"+
                 "- Added -artbrowser and -animbrowser commands\n"+
                 "- Added option to disable targeting grid containers directly\n"+
-                "- Added Avadonian font back in\n",
+                "- Added some new fonts in\n" +
+                "- Added option to disable controller\n" +
+                "- Added some standard python libs in for python scripting\n" +
+                
+                "- Various bug fixes\n",
 
             "/c[white][3.28.0]/cd\n" +
                 "- Added auto buy and sell agents\n" +
@@ -226,32 +270,6 @@ namespace ClassicUO.Game.UI.Gumps
                 "- Bug fix for object highlighting\n" +
                 "- Bug fix for <BR> tag in tooltips",
 
-            "/c[white][3.8.0]/cd\n" +
-                "- Added sound override feature\n" +
-                "- Added -radius command, see wiki for more details\n" +
-                "- Added an optional skill progress bar when a skill changes\n",
-
-            "/c[white][3.7.1]/cd\n" +
-                "- Added ability to sort advanced skills gump by lock status\n" +
-                "- Added import and export options for Grid Highlight settings\n" +
-                "- Added a simple account selector on the login screen\n" +
-                "- Added a toggle to auto sort grid containers\n" +
-                "- Trees/stumps will be slightly visible with circle of transparency on\n" +
-                "- Multi item move can now move items to the trade window\n" +
-                "- Added -marktile command, see wiki for more details\n" +
-                "- Updated TUO with CUO updates\n" +
-                "- Fixed mouse interactions with art replaced using the PNG replacement system\n" +
-                "- Advanced Skill Gump light support for groups added by Elderwyn\n" +
-                "- Fix for backpack not loading contents when logging in\n" +
-                "- Text width fix for old clients\n" +
-                "- Fix for a potential small memory leak - Lasheras\n" +
-                "- Fix for a bug when creating a new character\n" +
-                "- Potential fix for bug when processing messages\n" +
-                "- Fixed an issue on OSI where corpses would not open in grid containers\n" +
-                "- Fix for some SOS messages\n" +
-                "- Fix for text not being clickable\n" +
-                "- Added yellow highlighting for overhead text",
-
             "\n\n/c[white]For further history please visit our discord."
         };
 
@@ -323,8 +341,8 @@ namespace ClassicUO.Game.UI.Gumps
                 Utility.Platforms.PlatformHelper.LaunchBrowser("https://discord.gg/QvqzkB95G4");
             };
 
-            CenterXInScreen();
-            CenterYInScreen();
+            CenterXInViewPort();
+            CenterYInViewPort();
         }
     }
 }

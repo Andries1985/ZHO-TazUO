@@ -35,6 +35,7 @@ using System.Collections.Generic;
 using System.Linq;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.UI.Controls;
+using ClassicUO.Input;
 using ClassicUO.Renderer;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
@@ -245,11 +246,11 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
-        private void OnLabelClick(object sender, EventArgs e)
+        private void OnLabelClick(object sender, MouseEventArgs e)
         {
             Label l = (Label) sender;
 
-            if (l != null)
+            if (e.Button == MouseButtonType.Left && l != null)
             {
                 SDL.SDL_SetClipboardText(l.Text);
                 GameActions.Print($"Copied to clipboard: {l.Text}");
@@ -260,8 +261,8 @@ namespace ClassicUO.Game.UI.Gumps
         {
             Dictionary<string, string> dict = new Dictionary<string, string>();
 
-            dict["Graphics"] = $"0x{obj.Graphic:X4}";
-            dict["Hue"] = $"0x{obj.Hue:X4}";
+            dict["Graphics"] = $"{obj.Graphic}";
+            dict["Hue"] = $"{obj.Hue}";
             dict["Position"] = $"X={obj.X}, Y={obj.Y}, Z={obj.Z}";
             dict["PriorityZ"] = obj.PriorityZ.ToString();
             dict["Distance"] = obj.Distance.ToString();
@@ -272,6 +273,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 case Mobile mob:
 
+                    dict["Type"] = "Mobile";
                     dict["Serial"] = $"0x{mob.Serial:X8}";
                     dict["Flags"] = mob.Flags.ToString();
                     dict["Notoriety"] = mob.NotorietyFlag.ToString();
@@ -292,6 +294,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 case Item it:
 
+                    dict["Type"] = "Item";
                     dict["Serial"] = $"0x{it.Serial:X8}";
                     dict["Flags"] = it.Flags.ToString();
                     dict["HP"] = $"{it.Hits}/{it.HitsMax}";
@@ -308,12 +311,14 @@ namespace ClassicUO.Game.UI.Gumps
 
                 case Static st:
 
+                    dict["Type"] = "Static";
                     dict["IsVegetation"] = st.IsVegetation.ToString();
 
                     break;
 
                 case Multi multi:
 
+                    dict["Type"] = "Multi";
                     dict["State"] = multi.State.ToString();
                     dict["IsMovable"] = multi.IsMovable.ToString();
 
@@ -321,6 +326,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 case Land land:
 
+                    dict["Type"] = "Land";
                     dict["IsFlat"] = (!land.IsStretched).ToString();
                     dict["NormalLeft"] = land.NormalLeft.ToString();
                     dict["NormalRight"] = land.NormalRight.ToString();

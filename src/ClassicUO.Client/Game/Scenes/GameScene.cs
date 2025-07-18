@@ -50,6 +50,8 @@ using SDL2;
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
+using ClassicUO.Game.UI.Gumps.GridHighLight;
+using ClassicUO.LegionScripting;
 
 namespace ClassicUO.Game.Scenes
 {
@@ -95,11 +97,14 @@ namespace ClassicUO.Game.Scenes
         private uint _timeToPlaceMultiInHouseCustomization;
         private readonly bool _use_render_target = false;
         private UseItemQueue _useItemQueue = new UseItemQueue();
+        private MoveItemQueue _moveItemQueue = new MoveItemQueue();
         private bool _useObjectHandles;
         private RenderTarget2D _world_render_target,
             _lightRenderTarget;
         private AnimatedStaticsManager _animatedStaticsManager;
+        private long _nextProfileSave;
 
+        public MoveItemQueue MoveItemQueue => _moveItemQueue;
         public bool UpdateDrawPosition { get; set; }
         public HotkeysManager Hotkeys { get; private set; }
         public MacroManager Macros { get; private set; }
@@ -207,10 +212,12 @@ namespace ClassicUO.Game.Scenes
             {
                 XmlGumpHandler.TryAutoOpenByName(xml);
             }
-
+            
+            PersistentVars.Load();
             LegionScripting.LegionScripting.Init();
             BuySellAgent.Load();
             GraphicsReplacement.Load();
+            SpellBarManager.Load();
         }
 
         private void ChatOnMessageReceived(object sender, MessageEventArgs e)
@@ -236,7 +243,14 @@ namespace ClassicUO.Game.Scenes
 
                     if (e.Parent == null || !SerialHelper.IsValid(e.Parent.Serial))
                     {
-                        name = ResGeneral.System;
+                        if (ProfileManager.CurrentProfile.HideJournalSystemPrefix)
+                        {
+                            name = null;
+                        }
+                        else
+                        {
+                            name = ResGeneral.System;
+                        }
                     }
                     else
                     {
@@ -248,15 +262,21 @@ namespace ClassicUO.Game.Scenes
                     break;
 
                 case MessageType.System:
-                    name =
-                        string.IsNullOrEmpty(e.Name)
-                        || string.Equals(
-                            e.Name,
-                            "system",
-                            StringComparison.InvariantCultureIgnoreCase
-                        )
-                            ? ResGeneral.System
-                            : e.Name;
+                    if (string.IsNullOrEmpty(e.Name) || string.Equals(e.Name, "system", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        if (ProfileManager.CurrentProfile.HideJournalSystemPrefix)
+                        {
+                            name = null;
+                        }
+                        else
+                        {
+                            name = ResGeneral.System;
+                        }
+                    }
+                    else
+                    {
+                        name = e.Name;
+                    }
 
                     text = e.Text;
 
@@ -349,10 +369,14 @@ namespace ClassicUO.Game.Scenes
             {
                 return;
             }
+            
+            SpellBarManager.Unload();
+            _moveItemQueue.Clear();
 
             GraphicsReplacement.Save();
             BuySellAgent.Unload();
 
+            PersistentVars.Unload();
             LegionScripting.LegionScripting.Unload();
 
             ProfileManager.CurrentProfile.GameWindowPosition = new Point(
@@ -430,6 +454,12 @@ namespace ClassicUO.Game.Scenes
 
         private void SocketOnDisconnected(object sender, SocketError e)
         {
+            if (DisconnectionRequested)
+            {
+                Client.Game.SetScene(new LoginScene());
+
+                return;
+            }
             if (Settings.GlobalSettings.Reconnect)
             {
                 _forceStopScene = true;
@@ -465,21 +495,7 @@ namespace ClassicUO.Game.Scenes
                     {
                         if (s)
                         {
-                            if (
-                                (
-                                    World.ClientFeatures.Flags
-                                    & CharacterListFlags.CLF_OWERWRITE_CONFIGURATION_BUTTON
-                                ) != 0
-                            )
-                            {
-                                DisconnectionRequested = true;
-                                NetClient.Socket.Send_LogoutNotification();
-                            }
-                            else
-                            {
-                                NetClient.Socket.Disconnect();
-                                Client.Game.SetScene(new LoginScene());
-                            }
+                            GameActions.Logout();
                         }
                     }
                 )
@@ -841,6 +857,8 @@ namespace ClassicUO.Game.Scenes
             Pathfinder.ProcessAutoWalk();
             DelayedObjectClickManager.Update();
             AutoLootManager.Instance.Update();
+            _moveItemQueue.ProcessQueue();
+            GridHighlightData.ProcessQueue();
 
             if (!MoveCharacterByMouseInput() && !currentProfile.DisableArrowBtn && !MoveCharByController())
             {
@@ -896,6 +914,12 @@ namespace ClassicUO.Game.Scenes
             }
 
             _useItemQueue.Update();
+
+            if (Time.Ticks > _nextProfileSave)
+            {
+                ProfileManager.CurrentProfile.Save(ProfileManager.ProfilePath);
+                _nextProfileSave = Time.Ticks + 1000*60*60; //1 Hour
+            }
 
             if (!UIManager.IsMouseOverWorld)
             {

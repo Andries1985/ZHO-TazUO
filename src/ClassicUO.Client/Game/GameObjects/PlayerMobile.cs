@@ -47,9 +47,7 @@ namespace ClassicUO.Game.GameObjects
     public class PlayerMobile : Mobile
     {
         private readonly Dictionary<BuffIconType, BuffIcon> _buffIcons = new Dictionary<BuffIconType, BuffIcon>();
-
-        private static SpellVisualRangeManager.CastTimerProgressBar castTimer;
-
+        
         public PlayerMobile(uint serial) : base(serial)
         {
             Skills = new Skill[SkillsLoader.Instance.SkillsCount];
@@ -68,7 +66,8 @@ namespace ClassicUO.Game.GameObjects
                 }
             };
 
-            UIManager.Add(castTimer = new SpellVisualRangeManager.CastTimerProgressBar());
+            if(ProfileManager.CurrentProfile != null && ProfileManager.CurrentProfile.EnableSpellIndicators)
+                UIManager.Add(new SpellVisualRangeManager.CastTimerProgressBar());
         }
 
         public Skill[] Skills { get; }
@@ -77,7 +76,7 @@ namespace ClassicUO.Game.GameObjects
 
         public ref Ability PrimaryAbility => ref Abilities[0];
         public ref Ability SecondaryAbility => ref Abilities[1];
-        protected override bool IsWalking => LastStepTime > Time.Ticks - Constants.PLAYER_WALKING_DELAY;
+        public override bool IsWalking => LastStepTime > Time.Ticks - Constants.PLAYER_WALKING_DELAY;
 
         public bool HasGump { get; set; }
         public uint LastGumpID { get; set; }
@@ -305,7 +304,7 @@ namespace ClassicUO.Game.GameObjects
 
             if (layerObject != null)
             {
-                equippedGraphic = layerObject.Graphic;
+                equippedGraphic = layerObject.OriginalGraphic;
             }
             else
             {
@@ -313,7 +312,7 @@ namespace ClassicUO.Game.GameObjects
 
                 if (layerObject != null)
                 {
-                    equippedGraphic = layerObject.Graphic;
+                    equippedGraphic = layerObject.OriginalGraphic;
                 }
             }
 
@@ -1613,7 +1612,7 @@ namespace ClassicUO.Game.GameObjects
 
          public bool Walk(Direction direction, bool run)
         {
-            if (!ProfileManager.CurrentProfile.AutoAvoidObstacules)
+            if (!ProfileManager.CurrentProfile.AutoAvoidObstacules || Pathfinder.AutoWalking)
             {
 
                 return WalkNotAvoid(direction, run);

@@ -75,13 +75,24 @@ namespace ClassicUO.Game.UI.Gumps
                 currentHeight = value;
             }
         }
+        
+        public new UILayer LayerOrder {
+            get
+            {
+                if (IsFocused)
+                    return UILayer.Default;
+
+                return UILayer.Under;
+            }
+            set { }
+        }
 
         public NameOverheadGump(uint serial) : base(serial, 0)
         {
             CanMove = false;
             AcceptMouseInput = true;
             CanCloseWithRightClick = true;
-
+            
             Entity entity = World.Get(serial);
 
             if (entity == null)
@@ -106,6 +117,8 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 return false;
             }
+
+            _text ??= TextBox.GetOne(string.Empty, ProfileManager.CurrentProfile.NamePlateFont, ProfileManager.CurrentProfile.NamePlateFontSize, entity is Mobile m ? Notoriety.GetHue(m.NotorietyFlag) : (ushort)0x0481, TextBox.RTLOptions.DefaultCenterStroked());
 
             if (entity is Item item)
             {
@@ -829,7 +842,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void Dispose()
         {
-            _text.Dispose();
+            _text?.Dispose();
             base.Dispose();
         }
     }

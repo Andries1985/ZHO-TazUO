@@ -40,7 +40,11 @@ using ClassicUO.Utility.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
+using ClassicUO.Game.UI.Gumps.SpellBar;
+using ClassicUO.LegionScripting;
 
 namespace ClassicUO.Game.Managers
 {
@@ -52,6 +56,13 @@ namespace ClassicUO.Game.Managers
 
         public static void Initialize()
         {
+            Register("sb", (s)=>UIManager.Add(new ScriptBrowser()));
+            
+            Register("updateapi", (s) =>
+            {
+                LegionScripting.LegionScripting.DownloadAPIPy();
+            });
+            
             Register
             (
                 "info",

@@ -1,9 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using ClassicUO.Game;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
+using ClassicUO.Utility.Logging;
 using LScript;
+using Microsoft.Xna.Framework;
 
 namespace ClassicUO.LegionScripting
 {
@@ -39,16 +42,16 @@ namespace ClassicUO.LegionScripting
                 if (parentContainer != uint.MaxValue && item.Container != parentContainer)
                     continue;
 
-                if (rootContainer != uint.MaxValue && item.RootContainer != rootContainer)
+                if (rootContainer != uint.MaxValue && item.BackpackOrRootContainer != rootContainer)
                     continue;
 
-                if (parOrRootContainer != uint.MaxValue && (item.Container != parOrRootContainer && item.RootContainer != parOrRootContainer))
+                if (parOrRootContainer != uint.MaxValue && (item.Container != parOrRootContainer && item.BackpackOrRootContainer != parOrRootContainer))
                     continue;
 
                 if (hue != ushort.MaxValue && item.Hue != hue)
                     continue;
 
-                var root = World.Items.Get(item.RootContainer);
+                var root = World.Items.Get(item.BackpackOrRootContainer);
 
                 if (groundRange != int.MaxValue && ((item.Distance > groundRange && root == null) || (root != null && root.Distance > groundRange)))
                     continue;
@@ -273,7 +276,7 @@ namespace ClassicUO.LegionScripting
                             }
                             break;
                         case ScanTypeObject.Followers:
-                            if (!(mobile.IsRenamable && mobile.NotorietyFlag != NotorietyFlag.Invulnerable && mobile.NotorietyFlag != NotorietyFlag.Enemy))
+                            if (!(mobile.IsRenamable && mobile.NotorietyFlag != NotorietyFlag.Enemy))
                             {
                                 continue;
                             }
@@ -298,6 +301,20 @@ namespace ClassicUO.LegionScripting
             }
 
             return serial;
+        }
+
+        public static Color GetColorFromHex(string color)
+        {
+            if (color.StartsWith("#") && color.Length == 7)
+            {
+                byte r = Convert.ToByte(color.Substring(1, 2), 16);
+                byte g = Convert.ToByte(color.Substring(3, 2), 16);
+                byte b = Convert.ToByte(color.Substring(5, 2), 16);
+
+                return new Color(r, g, b);
+            }
+            
+            return Color.Black;
         }
     }
 }
