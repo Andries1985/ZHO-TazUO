@@ -1,34 +1,4 @@
-#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
@@ -48,8 +18,9 @@ namespace ClassicUO.Game.UI.Gumps
     {
         private bool isLocked = false;
 
-        public Gump(uint local, uint server)
+        public Gump(World world, uint local, uint server)
         {
+            World = world;
             LocalSerial = local;
             ServerSerial = server;
             AcceptMouseInput = false;
@@ -58,7 +29,11 @@ namespace ClassicUO.Game.UI.Gumps
 
         public string PacketGumpText { get; set; } = string.Empty;
 
-        public bool CanBeSaved => GumpType != Gumps.GumpType.None || ServerSerial != 0;
+        public World World { get; }
+        
+        public virtual bool ShouldBeSaved => true;
+
+        public bool CanBeSaved => ShouldBeSaved && (GumpType != Gumps.GumpType.None || ServerSerial != 0);
 
         public virtual GumpType GumpType { get; }
 
@@ -198,7 +173,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public void CenterXInViewPort()
         {
-            var camera = Client.Game.Scene.Camera;
+            Camera camera = Client.Game.Scene.Camera;
             if (ProfileManager.CurrentProfile.GlobalScaling)
             {
                 float scale = ProfileManager.CurrentProfile.GlobalScale;
@@ -215,7 +190,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public void CenterYInViewPort()
         {
-            var camera = Client.Game.Scene.Camera;
+            Camera camera = Client.Game.Scene.Camera;
             if (ProfileManager.CurrentProfile.GlobalScaling)
             {
                 float scale = ProfileManager.CurrentProfile.GlobalScale;
@@ -232,8 +207,11 @@ namespace ClassicUO.Game.UI.Gumps
         {
             Rectangle windowBounds = Client.Game.Window.ClientBounds;
 
-            int newX = (int)MathHelper.Clamp(X, 0, windowBounds.Width - Width);
-            int newY = (int)MathHelper.Clamp(Y, 0, windowBounds.Height - Height);
+            int halfWidth = Width / 2;
+            int halfHeight = Height / 2;
+
+            int newX = (int)MathHelper.Clamp(X, -halfWidth, windowBounds.Width - halfWidth);
+            int newY = (int)MathHelper.Clamp(Y, -halfHeight, windowBounds.Height - halfHeight);
 
             X = newX;
             Y = newY;
@@ -252,10 +230,7 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
-        public void RequestUpdateContents()
-        {
-            InvalidateContents = true;
-        }
+        public void RequestUpdateContents() => InvalidateContents = true;
 
         protected virtual void UpdateContents()
         {
@@ -301,17 +276,14 @@ namespace ClassicUO.Game.UI.Gumps
         {
         }
 
-        public override bool Draw(UltimaBatcher2D batcher, int x, int y)
-        {
-            return IsVisible && base.Draw(batcher, x, y);
-        }
+        public override bool Draw(UltimaBatcher2D batcher, int x, int y) => IsVisible && base.Draw(batcher, x, y);
 
         public override void OnButtonClick(int buttonID)
         {
             if (!IsDisposed && LocalSerial != 0)
             {
-                List<uint> switches = new List<uint>();
-                List<Tuple<ushort, string>> entries = new List<Tuple<ushort, string>>();
+                var switches = new List<uint>();
+                var entries = new List<Tuple<ushort, string>>();
 
                 foreach (Control control in Children)
                 {
@@ -331,6 +303,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 GameActions.ReplyGump
                 (
+                    World,
                     LocalSerial,
                     // Seems like MasterGump serial does not work as expected.
                     /*MasterGumpSerial != 0 ? MasterGumpSerial :*/ ServerSerial,
@@ -367,10 +340,8 @@ namespace ClassicUO.Game.UI.Gumps
             base.CloseWithRightClick();
         }
 
-        public override void ChangePage(int pageIndex)
-        {
+        public override void ChangePage(int pageIndex) =>
             // For a gump, Page is the page that is drawing.
             ActivePage = pageIndex;
-        }
     }
 }

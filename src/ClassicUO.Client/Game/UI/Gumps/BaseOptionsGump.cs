@@ -10,7 +10,7 @@ using ClassicUO.Renderer;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using SDL2;
+using SDL3;
 using StbTextEditSharp;
 
 namespace ClassicUO.Game.UI.Gumps;
@@ -26,7 +26,7 @@ public class BaseOptionsGump : Gump
 
     public override bool AcceptMouseInput { get; set; } = true;
 
-    public BaseOptionsGump(int width, int height, string title) : base(0, 0)
+    public BaseOptionsGump(World world, int width, int height, string title) : base(world, 0, 0)
     {
         CanMove = true;
         CanCloseWithRightClick = true;
@@ -202,24 +202,18 @@ public class BaseOptionsGump : Gump
 
     #region Sub-Classes
 
-    protected ModernButton CategoryButton(string text, int page, int width, int height = 40)
+    protected ModernButton CategoryButton(string text, int page, int width, int height = 40) => new ModernButton(0, 0, width, height, ButtonAction.SwitchPage, text, ThemeSettings.BUTTON_FONT_COLOR)
     {
-        return new ModernButton(0, 0, width, height, ButtonAction.SwitchPage, text, ThemeSettings.BUTTON_FONT_COLOR)
-        {
-            ButtonParameter = page,
-            FullPageSwitch = true
-        };
-    }
+        ButtonParameter = page,
+        FullPageSwitch = true
+    };
 
-    protected ModernButton SubCategoryButton(string text, int page, int width, int height = 40)
+    protected ModernButton SubCategoryButton(string text, int page, int width, int height = 40) => new ModernButton(0, 0, width, height, ButtonAction.SwitchPage, text, ThemeSettings.BUTTON_FONT_COLOR)
     {
-        return new ModernButton(0, 0, width, height, ButtonAction.SwitchPage, text, ThemeSettings.BUTTON_FONT_COLOR)
-        {
-            ButtonParameter = page
-        };
-    }
+        ButtonParameter = page
+    };
 
-    protected static class ThemeSettings
+    public static class ThemeSettings
     {
         public static int SLIDER_WIDTH { get; set; } = 150;
         public static int COMBO_BOX_WIDTH { get; set; } = 225;
@@ -279,15 +273,9 @@ public class BaseOptionsGump : Gump
             Y += ThemeSettings.BLANK_LINE;
         }
 
-        public static void Indent()
-        {
-            X += ThemeSettings.INDENT_SPACE;
-        }
+        public static void Indent() => X += ThemeSettings.INDENT_SPACE;
 
-        public static void RemoveIndent()
-        {
-            X -= ThemeSettings.INDENT_SPACE;
-        }
+        public static void RemoveIndent() => X -= ThemeSettings.INDENT_SPACE;
 
         public static Control PositionControl(Control c)
         {
@@ -381,7 +369,7 @@ public class BaseOptionsGump : Gump
 
             int scrollAreaHeight = 100;
 
-            ScrollArea scrollArea = new ScrollArea(x, y, FullControl.Width, scrollAreaHeight, FullControl.Height)
+            var scrollArea = new ScrollArea(x, y, FullControl.Width, scrollAreaHeight, FullControl.Height)
             {
                 AcceptMouseInput = true
             };
@@ -401,7 +389,7 @@ public class BaseOptionsGump : Gump
         public ScrollArea ScrollContainer { get; }
     }
 
-    protected class LeftSideMenuRightSideContent : Control
+    public class LeftSideMenuRightSideContent : Control
     {
         private ScrollArea left, right;
         private int leftY, rightY = ThemeSettings.TOP_PADDING, leftX, rightX;
@@ -479,7 +467,7 @@ public class BaseOptionsGump : Gump
             leftY = 0;
             leftX = 0;
 
-            foreach (var c in left.Children)
+            foreach (Control c in left.Children)
             {
                 if (c == null || c.IsDisposed || c is not ModernButton)
                     continue;
@@ -502,15 +490,9 @@ public class BaseOptionsGump : Gump
             right.Add(c, page);
         }
 
-        public void BlankLine()
-        {
-            rightY += ThemeSettings.BLANK_LINE;
-        }
+        public void BlankLine() => rightY += ThemeSettings.BLANK_LINE;
 
-        public void Indent()
-        {
-            rightX += ThemeSettings.INDENT_SPACE;
-        }
+        public void Indent() => rightX += ThemeSettings.INDENT_SPACE;
 
         public void RemoveIndent()
         {
@@ -544,7 +526,7 @@ public class BaseOptionsGump : Gump
             }
         }
     }
-    
+
     protected class HotkeyBox : Control
     {
         private bool _actived;
@@ -560,7 +542,7 @@ public class BaseOptionsGump : Gump
             Width = 300;
             Height = 40;
 
-            AlphaBlendControl bg = new AlphaBlendControl()
+            var bg = new AlphaBlendControl()
             {
                 Width = 150,
                 Height = 40,
@@ -596,7 +578,7 @@ public class BaseOptionsGump : Gump
         }
 
         public SDL.SDL_Keycode Key { get; private set; }
-        public SDL.SDL_GameControllerButton[] Buttons { get; private set; }
+        public SDL.SDL_GamepadButton[] Buttons { get; private set; }
         public MouseButtonType MouseButton { get; private set; }
         public bool WheelScroll { get; private set; }
         public bool WheelUp { get; private set; }
@@ -624,7 +606,7 @@ public class BaseOptionsGump : Gump
 
         public event EventHandler HotkeyChanged, HotkeyCancelled;
 
-        protected override void OnControllerButtonDown(SDL.SDL_GameControllerButton button)
+        protected override void OnControllerButtonDown(SDL.SDL_GamepadButton button)
         {
             if (IsActive)
             {
@@ -640,7 +622,7 @@ public class BaseOptionsGump : Gump
             }
         }
 
-        public void SetButtons(SDL.SDL_GameControllerButton[] buttons)
+        public void SetButtons(SDL.SDL_GamepadButton[] buttons)
         {
             ResetBinding();
             Buttons = buttons;
@@ -649,7 +631,7 @@ public class BaseOptionsGump : Gump
 
         public void SetKey(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
         {
-            if (key == SDL.SDL_Keycode.SDLK_UNKNOWN && mod == SDL.SDL_Keymod.KMOD_NONE)
+            if (key == SDL.SDL_Keycode.SDLK_UNKNOWN && mod == SDL.SDL_Keymod.SDL_KMOD_NONE)
             {
                 ResetBinding();
 
@@ -675,21 +657,21 @@ public class BaseOptionsGump : Gump
         {
             if (button == MouseButtonType.Middle || button == MouseButtonType.XButton1 || button == MouseButtonType.XButton2)
             {
-                SDL.SDL_Keymod mod = SDL.SDL_Keymod.KMOD_NONE;
+                SDL.SDL_Keymod mod = SDL.SDL_Keymod.SDL_KMOD_NONE;
 
                 if (Keyboard.Alt)
                 {
-                    mod |= SDL.SDL_Keymod.KMOD_ALT;
+                    mod |= SDL.SDL_Keymod.SDL_KMOD_ALT;
                 }
 
                 if (Keyboard.Shift)
                 {
-                    mod |= SDL.SDL_Keymod.KMOD_SHIFT;
+                    mod |= SDL.SDL_Keymod.SDL_KMOD_SHIFT;
                 }
 
                 if (Keyboard.Ctrl)
                 {
-                    mod |= SDL.SDL_Keymod.KMOD_CTRL;
+                    mod |= SDL.SDL_Keymod.SDL_KMOD_CTRL;
                 }
 
                 SetMouseButton(button, mod);
@@ -712,21 +694,21 @@ public class BaseOptionsGump : Gump
 
         protected override void OnMouseWheel(MouseEventType delta)
         {
-            SDL.SDL_Keymod mod = SDL.SDL_Keymod.KMOD_NONE;
+            SDL.SDL_Keymod mod = SDL.SDL_Keymod.SDL_KMOD_NONE;
 
             if (Keyboard.Alt)
             {
-                mod |= SDL.SDL_Keymod.KMOD_ALT;
+                mod |= SDL.SDL_Keymod.SDL_KMOD_ALT;
             }
 
             if (Keyboard.Shift)
             {
-                mod |= SDL.SDL_Keymod.KMOD_SHIFT;
+                mod |= SDL.SDL_Keymod.SDL_KMOD_SHIFT;
             }
 
             if (Keyboard.Ctrl)
             {
-                mod |= SDL.SDL_Keymod.KMOD_CTRL;
+                mod |= SDL.SDL_Keymod.SDL_KMOD_CTRL;
             }
 
             if (delta == MouseEventType.WheelScrollUp)
@@ -782,7 +764,7 @@ public class BaseOptionsGump : Gump
                     HotkeyCancelled.Raise(this);
 
                     Key = SDL.SDL_Keycode.SDLK_UNKNOWN;
-                    Mod = SDL.SDL_Keymod.KMOD_NONE;
+                    Mod = SDL.SDL_Keymod.SDL_KMOD_NONE;
 
                     break;
             }
@@ -881,10 +863,7 @@ public class BaseOptionsGump : Gump
         }
 
 
-        public void SetText(string text)
-        {
-            _textbox.SetText(text);
-        }
+        public void SetText(string text) => _textbox.SetText(text);
 
         public void SetTooltip(string text)
         {
@@ -987,10 +966,7 @@ public class BaseOptionsGump : Gump
 
             public bool AllowSelection { get; set; } = true;
 
-            internal int TotalHeight
-            {
-                get { return _rendererText.Height; }
-            }
+            internal int TotalHeight => _rendererText.Height;
 
             public string Text
             {
@@ -1023,7 +999,7 @@ public class BaseOptionsGump : Gump
                 {
                     if (index < _rendererText.Text.Length)
                     {
-                        var glyphRender = _rendererText.RTL.GetGlyphInfoByIndex(index);
+                        FontStashSharp.RichText.TextChunkGlyph? glyphRender = _rendererText.RTL.GetGlyphInfoByIndex(index);
 
                         if (glyphRender != null)
                         {
@@ -1037,7 +1013,7 @@ public class BaseOptionsGump : Gump
 
             public TextEditRow LayoutRow(int startIndex)
             {
-                TextEditRow r = new TextEditRow()
+                var r = new TextEditRow()
                 {
                     num_chars = _rendererText.Text.Length
                 };
@@ -1069,10 +1045,7 @@ public class BaseOptionsGump : Gump
                 }
             }
 
-            protected void UpdateCaretScreenPosition()
-            {
-                _caretScreenPosition = GetCoordsForIndex(Stb.CursorIndex);
-            }
+            protected void UpdateCaretScreenPosition() => _caretScreenPosition = GetCoordsForIndex(Stb.CursorIndex);
 
             protected Point GetCoordsForIndex(int index)
             {
@@ -1082,7 +1055,7 @@ public class BaseOptionsGump : Gump
                 {
                     if (index < Text.Length)
                     {
-                        var glyphRender = _rendererText.RTL.GetGlyphInfoByIndex(index);
+                        FontStashSharp.RichText.TextChunkGlyph? glyphRender = _rendererText.RTL.GetGlyphInfoByIndex(index);
 
                         if (glyphRender != null)
                         {
@@ -1093,22 +1066,22 @@ public class BaseOptionsGump : Gump
                     else if (_rendererText.RTL.Lines != null && _rendererText.RTL.Lines.Count > 0)
                     {
                         // After last glyph
-                        var lastLine = _rendererText.RTL.Lines[_rendererText.RTL.Lines.Count - 1];
+                        FontStashSharp.RichText.TextLine lastLine = _rendererText.RTL.Lines[_rendererText.RTL.Lines.Count - 1];
 
                         if (lastLine.Count > 0)
                         {
-                            var glyphRender = lastLine.GetGlyphInfoByIndex(lastLine.Count - 1);
+                            FontStashSharp.RichText.TextChunkGlyph? glyphRender = lastLine.GetGlyphInfoByIndex(lastLine.Count - 1);
 
                             x += glyphRender.Value.Bounds.Right;
                             y += glyphRender.Value.LineTop;
                         }
                         else if (_rendererText.RTL.Lines.Count > 1)
                         {
-                            var previousLine = _rendererText.RTL.Lines[_rendererText.RTL.Lines.Count - 2];
+                            FontStashSharp.RichText.TextLine previousLine = _rendererText.RTL.Lines[_rendererText.RTL.Lines.Count - 2];
 
                             if (previousLine.Count > 0)
                             {
-                                var glyphRender = previousLine.GetGlyphInfoByIndex(0);
+                                FontStashSharp.RichText.TextChunkGlyph? glyphRender = previousLine.GetGlyphInfoByIndex(0);
                                 y += glyphRender.Value.LineTop + lastLine.Size.Y + _rendererText.RTL.VerticalSpacing;
                             }
                         }
@@ -1122,7 +1095,7 @@ public class BaseOptionsGump : Gump
             {
                 if (Text != null)
                 {
-                    var line = _rendererText.RTL.GetLineByY(coords.Y);
+                    FontStashSharp.RichText.TextLine line = _rendererText.RTL.GetLineByY(coords.Y);
 
                     if (line != null)
                     {
@@ -1142,7 +1115,7 @@ public class BaseOptionsGump : Gump
             {
                 if (Text != null)
                 {
-                    var line = _rendererText.RTL.GetLineByY(clicked.Y);
+                    FontStashSharp.RichText.TextLine line = _rendererText.RTL.GetLineByY(clicked.Y);
 
                     if (line != null)
                     {
@@ -1168,10 +1141,7 @@ public class BaseOptionsGump : Gump
                 return k;
             }
 
-            private bool IsMaxCharReached(int count)
-            {
-                return _maxCharCount >= 0 && Length + count >= _maxCharCount;
-            }
+            private bool IsMaxCharReached(int count) => _maxCharCount >= 0 && Length + count >= _maxCharCount;
 
             protected virtual void OnTextChanged()
             {
@@ -1189,9 +1159,7 @@ public class BaseOptionsGump : Gump
             internal override void OnFocusLost()
             {
                 if (Stb != null)
-                {
                     Stb.SelectStart = Stb.SelectEnd = 0;
-                }
 
                 base.OnFocusLost();
             }
@@ -1216,7 +1184,7 @@ public class BaseOptionsGump : Gump
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_a when Keyboard.Ctrl && !NoSelection: SelectAll(); break;
+                    case SDL.SDL_Keycode.SDLK_A when Keyboard.Ctrl && !NoSelection: SelectAll(); break;
 
                     case SDL.SDL_Keycode.SDLK_ESCAPE:
                         if (LoseFocusOnEscapeKey && SelectionStart == SelectionEnd)
@@ -1231,7 +1199,7 @@ public class BaseOptionsGump : Gump
 
                     case SDL.SDL_Keycode.SDLK_INSERT when IsEditable: stb_key = ControlKeys.InsertMode; break;
 
-                    case SDL.SDL_Keycode.SDLK_c when Keyboard.Ctrl && !NoSelection:
+                    case SDL.SDL_Keycode.SDLK_C when Keyboard.Ctrl && !NoSelection:
                         int selectStart = Math.Min(Stb.SelectStart, Stb.SelectEnd);
                         int selectEnd = Math.Max(Stb.SelectStart, Stb.SelectEnd);
 
@@ -1242,7 +1210,7 @@ public class BaseOptionsGump : Gump
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_x when Keyboard.Ctrl && !NoSelection:
+                    case SDL.SDL_Keycode.SDLK_X when Keyboard.Ctrl && !NoSelection:
                         selectStart = Math.Min(Stb.SelectStart, Stb.SelectEnd);
                         selectEnd = Math.Max(Stb.SelectStart, Stb.SelectEnd);
 
@@ -1258,11 +1226,11 @@ public class BaseOptionsGump : Gump
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_v when Keyboard.Ctrl && IsEditable: OnTextInput(StringHelper.GetClipboardText(Multiline)); break;
+                    case SDL.SDL_Keycode.SDLK_V when Keyboard.Ctrl && IsEditable: OnTextInput(StringHelper.GetClipboardText(Multiline)); break;
 
-                    case SDL.SDL_Keycode.SDLK_z when Keyboard.Ctrl && IsEditable: stb_key = ControlKeys.Undo; break;
+                    case SDL.SDL_Keycode.SDLK_Z when Keyboard.Ctrl && IsEditable: stb_key = ControlKeys.Undo; break;
 
-                    case SDL.SDL_Keycode.SDLK_y when Keyboard.Ctrl && IsEditable: stb_key = ControlKeys.Redo; break;
+                    case SDL.SDL_Keycode.SDLK_Y when Keyboard.Ctrl && IsEditable: stb_key = ControlKeys.Redo; break;
 
                     case SDL.SDL_Keycode.SDLK_LEFT:
                         if (Keyboard.Ctrl && Keyboard.Shift)
@@ -1489,10 +1457,7 @@ public class BaseOptionsGump : Gump
                 }
             }
 
-            public void AppendText(string text)
-            {
-                Stb.Paste(text);
-            }
+            public void AppendText(string text) => Stb.Paste(text);
 
             protected override void OnTextInput(string c)
             {
@@ -1725,7 +1690,7 @@ public class BaseOptionsGump : Gump
         }
     }
 
-    protected class ModernButton : HitBox, SearchableOption
+    public class ModernButton : HitBox, SearchableOption
     {
         private readonly ButtonAction _action;
         private readonly int _groupnumber;
@@ -1750,7 +1715,7 @@ public class BaseOptionsGump : Gump
 
             SearchValueChanged += ModernOptionsGump_SearchValueChanged;
         }
-        
+
         public override void Dispose()
         {
             base.Dispose();
@@ -1883,18 +1848,12 @@ public class BaseOptionsGump : Gump
             return base.Draw(batcher, x, y);
         }
 
-        public bool Search(string text)
-        {
-            return TextLabel.Text.ToLower().Contains(text.ToLower());
-        }
+        public bool Search(string text) => TextLabel.Text.ToLower().Contains(text.ToLower());
 
-        public void OnSearchMatch()
-        {
-            TextLabel.Alpha = 1f;
-        }
+        public void OnSearchMatch() => TextLabel.Alpha = 1f;
     }
 
-    protected class ScrollArea : Control
+    public class ScrollArea : Control
     {
         private ScrollBar _scrollBar;
 
@@ -2124,10 +2083,7 @@ public class BaseOptionsGump : Gump
                 return true; // base.Draw(batcher, x, y);
             }
 
-            protected override int GetScrollableArea()
-            {
-                return Height - _rectSlider.Height;
-            }
+            protected override int GetScrollableArea() => Height - _rectSlider.Height;
 
             protected override void OnMouseDown(int x, int y, MouseButtonType button)
             {
@@ -2174,10 +2130,7 @@ public class BaseOptionsGump : Gump
                 }
             }
 
-            public override bool Contains(int x, int y)
-            {
-                return x >= 0 && x <= Width && y >= 0 && y <= Height;
-            }
+            public override bool Contains(int x, int y) => x >= 0 && x <= Width && y >= 0 && y <= Height;
         }
     }
 
@@ -2187,7 +2140,7 @@ public class BaseOptionsGump : Gump
         private Combobox _comboBox;
         private readonly string[] options;
 
-        public ComboBoxWithLabel(string label, int labelWidth, int comboWidth, string[] options, int selectedIndex, Action<int, string> onOptionSelected = null)
+        public ComboBoxWithLabel(World world, string label, int labelWidth, int comboWidth, string[] options, int selectedIndex, Action<int, string> onOptionSelected = null)
         {
             AcceptMouseInput = true;
             CanMove = true;
@@ -2199,7 +2152,7 @@ public class BaseOptionsGump : Gump
 
             Add
             (
-                _comboBox = new Combobox(comboWidth, options, selectedIndex, onOptionSelected: onOptionSelected)
+                _comboBox = new Combobox(world, comboWidth, options, selectedIndex, onOptionSelected: onOptionSelected)
                 {
                     X = _label.MeasuredSize.X + _label.X + 5
                 }
@@ -2211,7 +2164,7 @@ public class BaseOptionsGump : Gump
             SearchValueChanged += ModernOptionsGump_SearchValueChanged;
             this.options = options;
         }
-        
+
         public override void Dispose()
         {
             base.Dispose();
@@ -2256,10 +2209,7 @@ public class BaseOptionsGump : Gump
             return false;
         }
 
-        public void OnSearchMatch()
-        {
-            _label.Alpha = 1f;
-        }
+        public void OnSearchMatch() => _label.Alpha = 1f;
 
         public int SelectedIndex => _comboBox.SelectedIndex;
 
@@ -2271,10 +2221,12 @@ public class BaseOptionsGump : Gump
             private int _selectedIndex = 0;
             private readonly int[] _originalIndices;
             private readonly string[] _sortedItems;
-            
 
-            public Combobox(int width, string[] items, int selected = -1, int maxHeight = 400, Action<int, string> onOptionSelected = null)
+            private World world;
+
+            public Combobox(World world, int width, string[] items, int selected = -1, int maxHeight = 400, Action<int, string> onOptionSelected = null)
             {
+                this.world = world;
                 Width = width;
                 Height = 25;
                 _items = items;
@@ -2286,10 +2238,10 @@ public class BaseOptionsGump : Gump
                 _originalIndices = Enumerable.Range(0, items.Length).ToArray();
                 _sortedItems = new string[items.Length];
                 Array.Copy(items, _sortedItems, items.Length);
-    
+
                 // Sort both arrays together
                 Array.Sort(_sortedItems, _originalIndices);
-    
+
                 // Find the display index for the selected original index
                 int displayIndex = selected > -1 ? Array.IndexOf(_originalIndices, selected) : -1;
 
@@ -2301,7 +2253,7 @@ public class BaseOptionsGump : Gump
                 _label.X = 2;
                 _label.Y = (Height >> 1) - (_label.Height >> 1);
                 Add(_label);
-                
+
                 _selectedIndex = displayIndex;
             }
 
@@ -2346,7 +2298,7 @@ public class BaseOptionsGump : Gump
                     comboY = Client.Game.Window.ClientBounds.Height - _maxHeight;
                 }
 
-                UIManager.Add(new ComboboxGump(ScreenCoordinateX, comboY, Width, _maxHeight, _sortedItems, _originalIndices, this));
+                UIManager.Add(new ComboboxGump(world, ScreenCoordinateX, comboY, Width, _maxHeight, _sortedItems, _originalIndices, this));
 
                 base.OnMouseUp(x, y, button);
             }
@@ -2355,7 +2307,7 @@ public class BaseOptionsGump : Gump
             {
                 private readonly Combobox _combobox;
 
-                public ComboboxGump(int x, int y, int width, int maxHeight, string[] items, int[] originalIndices, Combobox combobox) : base(0, 0)
+                public ComboboxGump(World world, int x, int y, int width, int maxHeight, string[] items, int[] originalIndices, Combobox combobox) : base(world, 0, 0)
                 {
                     CanMove = false;
                     AcceptMouseInput = true;
@@ -2371,7 +2323,7 @@ public class BaseOptionsGump : Gump
                     ColorBox cb;
                     Add(cb = new ColorBox(width, 0, ThemeSettings.BACKGROUND));
 
-                    HoveredLabel[] labels = new HoveredLabel[items.Length];
+                    var labels = new HoveredLabel[items.Length];
 
                     for (int i = 0; i < items.Length; i++)
                     {
@@ -2382,7 +2334,7 @@ public class BaseOptionsGump : Gump
                             item = string.Empty;
                         }
 
-                        HoveredLabel label = new HoveredLabel
+                        var label = new HoveredLabel
                             (item, ThemeSettings.DROPDOWN_OPTION_NORMAL_HUE, ThemeSettings.DROPDOWN_OPTION_HOVER_HUE, ThemeSettings.DROPDOWN_OPTION_SELECTED_HUE, width)
                             {
                                 X = 2,
@@ -2400,7 +2352,7 @@ public class BaseOptionsGump : Gump
                     int totalHeight = Math.Min(maxHeight, labels.Max(o => o.Y + o.Height));
                     int maxWidth = Math.Max(width, labels.Max(o => o.X + o.Width));
 
-                    ScrollArea area = new ScrollArea(0, 0, maxWidth + 15, totalHeight)
+                    var area = new ScrollArea(0, 0, maxWidth + 15, totalHeight)
                     {
                         AcceptMouseInput = true
                     };
@@ -2502,8 +2454,9 @@ public class BaseOptionsGump : Gump
         }
     }
 
-    protected class InputFieldWithLabel : Control, SearchableOption
+    public class InputFieldWithLabel : Control, SearchableOption
     {
+        public string Text => _inputField.Text;
         private readonly InputField _inputField;
         private readonly TextBox _label;
 
@@ -2530,7 +2483,7 @@ public class BaseOptionsGump : Gump
 
             SearchValueChanged += ModernOptionsGump_SearchValueChanged;
         }
-        
+
         public override void Dispose()
         {
             base.Dispose();
@@ -2557,6 +2510,8 @@ public class BaseOptionsGump : Gump
             }
         }
 
+        public void SetText(string text) => _inputField.SetText(text);
+
         public bool Search(string text)
         {
             if (_label.Text.ToLower().Contains(text.ToLower()))
@@ -2567,10 +2522,7 @@ public class BaseOptionsGump : Gump
             return false;
         }
 
-        public void OnSearchMatch()
-        {
-            _label.Alpha = 1f;
-        }
+        public void OnSearchMatch() => _label.Alpha = 1f;
     }
 
     protected class ModernColorPickerWithLabel : Control, SearchableOption
@@ -2578,13 +2530,13 @@ public class BaseOptionsGump : Gump
         private TextBox _label;
         private ModernColorPicker.HueDisplay _colorPicker;
 
-        public ModernColorPickerWithLabel(string text, ushort hue, Action<ushort> hueSelected = null, int maxWidth = 0)
+        public ModernColorPickerWithLabel(World world, string text, ushort hue, Action<ushort> hueSelected = null, int maxWidth = 0)
         {
             AcceptMouseInput = true;
             CanMove = true;
             WantUpdateSize = false;
 
-            Add(_colorPicker = new ModernColorPicker.HueDisplay(hue, hueSelected, true));
+            Add(_colorPicker = new ModernColorPicker.HueDisplay(world, hue, hueSelected, true));
 
             _label = TextBox.GetOne
                 (text, ThemeSettings.FONT, ThemeSettings.STANDARD_TEXT_SIZE, ThemeSettings.TEXT_FONT_COLOR, TextBox.RTLOptions.Default(maxWidth > 0 ? maxWidth : null));
@@ -2597,14 +2549,18 @@ public class BaseOptionsGump : Gump
 
             SearchValueChanged += ModernOptionsGump_SearchValueChanged;
         }
-        
+
         public override void Dispose()
         {
             base.Dispose();
             SearchValueChanged -= ModernOptionsGump_SearchValueChanged;
         }
 
-        public ushort Hue => _colorPicker.Hue;
+        public ushort Hue
+        {
+            get { return _colorPicker.Hue; }
+            set { _colorPicker.Hue = value; }
+        }
 
         private void ModernOptionsGump_SearchValueChanged(object sender, EventArgs e)
         {
@@ -2626,18 +2582,12 @@ public class BaseOptionsGump : Gump
             }
         }
 
-        public bool Search(string text)
-        {
-            return _label.Text.ToLower().Contains(text.ToLower());
-        }
+        public bool Search(string text) => _label.Text.ToLower().Contains(text.ToLower());
 
-        public void OnSearchMatch()
-        {
-            _label.Alpha = 1f;
-        }
+        public void OnSearchMatch() => _label.Alpha = 1f;
     }
 
-    protected class CheckboxWithLabel : Control, SearchableOption
+    public class CheckboxWithLabel : Control, SearchableOption
     {
         private bool _isChecked;
         private readonly TextBox _text;
@@ -2731,10 +2681,7 @@ public class BaseOptionsGump : Gump
             return base.Draw(batcher, x, y);
         }
 
-        protected virtual void OnCheckedChanged()
-        {
-            ValueChanged?.Invoke(IsChecked);
-        }
+        protected virtual void OnCheckedChanged() => ValueChanged?.Invoke(IsChecked);
 
         protected override void OnMouseUp(int x, int y, MouseButtonType button)
         {
@@ -2751,15 +2698,9 @@ public class BaseOptionsGump : Gump
             SearchValueChanged -= ModernOptionsGump_SearchValueChanged;
         }
 
-        public bool Search(string text)
-        {
-            return _text.Text.ToLower().Contains(text.ToLower());
-        }
+        public bool Search(string text) => _text.Text.ToLower().Contains(text.ToLower());
 
-        public void OnSearchMatch()
-        {
-            _text.Alpha = 1f;
-        }
+        public void OnSearchMatch() => _text.Alpha = 1f;
     }
 
     protected class SliderWithLabel : Control, SearchableOption
@@ -2820,15 +2761,9 @@ public class BaseOptionsGump : Gump
             }
         }
 
-        public bool Search(string text)
-        {
-            return _label.Text.ToLower().Contains(text.ToLower());
-        }
+        public bool Search(string text) => _label.Text.ToLower().Contains(text.ToLower());
 
-        public void OnSearchMatch()
-        {
-            _label.Alpha = 1f;
-        }
+        public void OnSearchMatch() => _label.Alpha = 1f;
 
         private class Slider : Control
         {

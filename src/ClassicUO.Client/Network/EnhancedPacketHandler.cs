@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ClassicUO.Configuration;
+using ClassicUO.Game;
 using ClassicUO.IO;
 using ClassicUO.Utility.Logging;
 
@@ -42,14 +43,14 @@ public class EnhancedPacketHandler
             }
         }
         
-        NetClient.Socket.SendEnhancedPacket(); //Confirm we are ready to receive enhanced packets.
+        AsyncNetClient.Socket.SendEnhancedPacket(); //Confirm we are ready to receive enhanced packets.
     }
 
     private readonly Dictionary<ushort, EnhancedOnPacketBufferReader> _handlers = new();
     public delegate void EnhancedOnPacketBufferReader(ref StackDataReader p, int version);
     public static EnhancedPacketHandler Handler { get; } = new();
 
-    public static void Handle(ref StackDataReader p)
+    public static void Handle(World world, ref StackDataReader p)
     {
         ushort id = p.ReadUInt16BE();
         ushort ver = p.ReadUInt16BE();

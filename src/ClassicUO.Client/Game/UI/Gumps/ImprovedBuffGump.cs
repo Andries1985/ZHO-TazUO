@@ -8,7 +8,7 @@ using System.Xml;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class ImprovedBuffGump : Gump
+    public class ImprovedBuffGump : Gump
     {
         public const int HEIGHT = CoolDownBar.COOL_DOWN_HEIGHT * (BuffBarManager.MAX_COOLDOWN_BARS + 2);
         private GumpPic _background;
@@ -17,7 +17,7 @@ namespace ClassicUO.Game.UI.Gumps
         private ushort _graphic = 2091;
         private DataBox _box;
 
-        public ImprovedBuffGump() : base(0, 0)
+        public ImprovedBuffGump(World world) : base(world, 0, 0)
         {
             X = 100;
             Y = 100;
@@ -34,7 +34,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (icon != null)
             {
-                CoolDownBar coolDownBar = new CoolDownBar(TimeSpan.FromMilliseconds(icon.Timer - Time.Ticks), icon.Title.Replace("<br>", " "), ProfileManager.CurrentProfile.ImprovedBuffBarHue, 0, 0, icon.Graphic, icon.Type, true);
+                var coolDownBar = new CoolDownBar(World, TimeSpan.FromMilliseconds(icon.Timer - Time.Ticks), icon.Title.Replace("<br>", " "), ProfileManager.CurrentProfile.ImprovedBuffBarHue, 0, 0, icon.Graphic, icon.Type, true);
                 coolDownBar.SetTooltip(icon.Text);
                 BuffBarManager.AddCoolDownBar(coolDownBar, _direction, _box);
                 _box.Add(coolDownBar);
@@ -82,10 +82,7 @@ namespace ClassicUO.Game.UI.Gumps
             BuffBarManager.UpdatePositions(_direction, _box);
         }
 
-        public override void Update()
-        {
-            base.Update();
-        }
+        public override void Update() => base.Update();
 
         public override void OnButtonClick(int buttonID)
         {
@@ -125,7 +122,7 @@ namespace ClassicUO.Game.UI.Gumps
             UpdateContents();
         }
 
-        public ImprovedBuffGump(int x, int y) : this()
+        public ImprovedBuffGump(World world, int x, int y) : this(world)
         {
             X = x;
             Y = y;
@@ -153,10 +150,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override GumpType GumpType => GumpType.Buff;
 
-        public override bool Draw(UltimaBatcher2D batcher, int x, int y)
-        {
-            return base.Draw(batcher, x, y);
-        }
+        public override bool Draw(UltimaBatcher2D batcher, int x, int y) => base.Draw(batcher, x, y);
 
         private static class BuffBarManager
         {

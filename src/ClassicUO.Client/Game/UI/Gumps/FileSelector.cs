@@ -30,36 +30,35 @@ namespace ClassicUO.Game.UI.Gumps
         private string _title;
         private FileSelectorType _type;
 
-        public FileSelector(FileSelectorType type, string initialPath = null, string[] fileExtensions = null, Action<string> onFileSelected = null, string title = "File Browser") 
-            : base(0, 0)
+        public FileSelector(World world, FileSelectorType type, string initialPath = null, string[] fileExtensions = null, Action<string> onFileSelected = null, string title = "File Browser")
+            : base(world, 0, 0)
         {
             _type = type;
             _title = title;
-            
+
             if (!string.IsNullOrEmpty(initialPath))
                 _currentPath = initialPath;
             else if (!string.IsNullOrEmpty(_lastPath))
                 _currentPath = _lastPath;
             else
                 _currentPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            
+
             _currentPath = new DirectoryInfo(_currentPath).FullName;
-            if(_currentPath.EndsWith("/"))
-               _currentPath = _currentPath.Substring(0, _currentPath.Length - 1);
+            _currentPath = _currentPath.TrimEnd('/', '\\');
             _fileExtensions = fileExtensions;
             _onFileSelected = onFileSelected;
             _selectedFile = string.Empty;
 
             Width = GUMP_WIDTH;
             Height = GUMP_HEIGHT;
-            
+
             CanMove = true;
             CanCloseWithRightClick = true;
             AcceptMouseInput = true;
 
             BuildGump();
             RefreshFileList();
-            
+
             CenterXInViewPort();
             CenterYInViewPort();
         }
@@ -109,7 +108,7 @@ namespace ClassicUO.Game.UI.Gumps
             _filterTextBox = TextBox.GetOne(_fileExtensions != null ? string.Join(", ", _fileExtensions) : string.Empty, TrueTypeLoader.EMBEDDED_FONT, 16, Color.LightGray, TextBox.RTLOptions.Default(150));
             _filterTextBox.X = 80;
             _filterTextBox.Y = 85;
-            
+
             Add(_filterTextBox);
 
             // File list scroll area
@@ -159,19 +158,47 @@ namespace ClassicUO.Game.UI.Gumps
 
             try
             {
-                var dirc = _currentPath;
+                string dirc = _currentPath;
                 var dirButtonUp = new NiceButton(0, 0, BUTTON_WIDTH, 20, ButtonAction.Default, $"(Current Dir)", align: TEXT_ALIGN_TYPE.TS_LEFT, hue:693);
                 if (_type == FileSelectorType.Directory)
                     dirButtonUp.MouseUp += (sender, e) => SelectFile(dirc);
                 _scrollVBox.Add(dirButtonUp);
-                
-                var dirp = Directory.GetParent(_currentPath).FullName;
-                dirButtonUp = new NiceButton(0, 0, BUTTON_WIDTH, 20, ButtonAction.Default, $"(Parent Dir)", align: TEXT_ALIGN_TYPE.TS_LEFT, hue:693);
-                if (_type == FileSelectorType.Directory)
-                    dirButtonUp.MouseUp += (sender, e) => SelectFile(dirp);
-                dirButtonUp.MouseDoubleClick += (sender, e) => NavigateToDirectory(dirp);
-                _scrollVBox.Add(dirButtonUp);
-                
+
+                DirectoryInfo parent = Directory.GetParent(_currentPath);
+                if(parent != null)
+                {
+                    string dirp = parent.FullName;
+                    dirButtonUp = new NiceButton(0, 0, BUTTON_WIDTH, 20, ButtonAction.Default, $"(Parent Dir)",
+                        align: TEXT_ALIGN_TYPE.TS_LEFT, hue: 693);
+                    if (_type == FileSelectorType.Directory)
+                        dirButtonUp.MouseUp += (sender, e) => SelectFile(dirp);
+                    dirButtonUp.MouseDoubleClick += (sender, e) => NavigateToDirectory(dirp);
+                    _scrollVBox.Add(dirButtonUp);
+                }
+                else
+                {
+                    // We're at root, show available drives
+                    try
+                    {
+                        DriveInfo[] drives = DriveInfo.GetDrives();
+                        foreach (DriveInfo drive in drives.Where(d => d.IsReady))
+                        {
+                            string driveName = $"{drive.Name} ({drive.DriveType})";
+                            var driveButton = new NiceButton(0, 0, BUTTON_WIDTH, 20, ButtonAction.Default, driveName,
+                                align: TEXT_ALIGN_TYPE.TS_LEFT, hue: 692);
+                            
+                            if (_type == FileSelectorType.Directory)
+                                driveButton.MouseUp += (sender, e) => SelectFile(drive.RootDirectory.FullName);
+                            driveButton.MouseDoubleClick += (sender, e) => NavigateToDirectory(drive.RootDirectory.FullName);
+                            _scrollVBox.Add(driveButton);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _statusLabel.Text = $"Error loading drives: {ex.Message}";
+                    }
+                }
+
                 if (!Directory.Exists(_currentPath))
                 {
                     _statusLabel.Text = "Invalid directory path";
@@ -179,34 +206,34 @@ namespace ClassicUO.Game.UI.Gumps
                 }
 
                 _pathTextBox.Text = _currentPath;
-                
+
                 int itemHeight = 20;
 
                 // Add directories first
-                var directories = Directory.EnumerateDirectories(_currentPath)
+                string[] directories = Directory.EnumerateDirectories(_currentPath)
                                            .Where(dir => !Path.GetFileName(dir).StartsWith("."))
                                            .ToArray();
-                foreach (var dir in directories.OrderBy(d => Path.GetFileName(d)))
+                foreach (string dir in directories.OrderBy(d => Path.GetFileName(d)))
                 {
-                    var dirName = Path.GetFileName(dir);
+                    string dirName = Path.GetFileName(dir);
                     var dirButton = new NiceButton(0, 0, BUTTON_WIDTH, 20, ButtonAction.Default, $"/{dirName}/", align: TEXT_ALIGN_TYPE.TS_LEFT, hue:691);
-                    
+
                     if (_type == FileSelectorType.Directory)
                         dirButton.MouseUp += (sender, e) => SelectFile(dir);
-                    
+
                     dirButton.MouseDoubleClick += (sender, e) => NavigateToDirectory(dir);
                     _scrollVBox.Add(dirButton);
                 }
 
                 // Add files
-                var files = GetFilteredFiles(_currentPath);
-                foreach (var file in files.OrderBy(f => Path.GetFileName(f)))
+                string[] files = GetFilteredFiles(_currentPath);
+                foreach (string file in files.OrderBy(f => Path.GetFileName(f)))
                 {
-                    var fileName = "/" + Path.GetFileName(file);
+                    string fileName = "/" + Path.GetFileName(file);
                     var fileButton = new NiceButton(0, 0, BUTTON_WIDTH, itemHeight, ButtonAction.Default, fileName, align: TEXT_ALIGN_TYPE.TS_LEFT, hue: 68);
                     if(_type == FileSelectorType.File)
                         fileButton.MouseUp += (sender, e) =>SelectFile(file);
-                    
+
                     _scrollVBox.Add(fileButton);
                 }
 
@@ -224,9 +251,9 @@ namespace ClassicUO.Game.UI.Gumps
                 return [];
 
             var files = new List<string>();
-            foreach (var extension in _fileExtensions)
+            foreach (string extension in _fileExtensions)
             {
-                var pattern = extension.StartsWith("*.") ? extension : $"*.{extension.TrimStart('.')}";
+                string pattern = extension.StartsWith("*.") ? extension : $"*.{extension.TrimStart('.')}";
                 files.AddRange(Directory.GetFiles(path, pattern));
             }
 
@@ -252,11 +279,8 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
-            if (!string.IsNullOrEmpty(_selectedFile))
-            {
-                _onFileSelected?.Invoke(_selectedFile);
-                Dispose();
-            }
+            _onFileSelected?.Invoke(_selectedFile);
+            Dispose();
         }
 
         public override void OnButtonClick(int buttonID)
@@ -267,7 +291,7 @@ namespace ClassicUO.Game.UI.Gumps
                     Dispose();
                     break;
                 case 1: // Up directory
-                    var parent = Directory.GetParent(_currentPath);
+                    DirectoryInfo parent = Directory.GetParent(_currentPath);
                     if (parent != null)
                     {
                         _currentPath = parent.FullName;
@@ -291,7 +315,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (!string.IsNullOrEmpty(_filterTextBox.Text))
             {
-                var filterText = _filterTextBox.Text.Replace(" ", "");
+                string filterText = _filterTextBox.Text.Replace(" ", "");
                 if (string.IsNullOrEmpty(filterText) || filterText == "*.*" || filterText == "*")
                 {
                     _fileExtensions = null;
@@ -310,7 +334,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (!base.Draw(batcher, x, y))
                 return false;
-            
+
             batcher.DrawRectangle(
                 SolidColorTextureCache.GetTexture(Color.OrangeRed),
                 x - 1, y - 1,
@@ -322,9 +346,9 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
         // Static helper method to create and show the file browser
-        public static void ShowFileBrowser(FileSelectorType type, string initialPath = null, string[] fileExtensions = null, Action<string> onFileSelected = null, string title = "File Browser")
+        public static void ShowFileBrowser(World world, FileSelectorType type, string initialPath = null, string[] fileExtensions = null, Action<string> onFileSelected = null, string title = "File Browser")
         {
-            var gump = new FileSelector(type, initialPath, fileExtensions, onFileSelected, title);
+            var gump = new FileSelector(world, type, initialPath, fileExtensions, onFileSelected, title);
             UIManager.Add(gump);
         }
     }

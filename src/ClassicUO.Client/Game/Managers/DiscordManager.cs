@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
+using ClassicUO.Game.GameObjects;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
 using Discord.Sdk;
@@ -18,22 +19,23 @@ namespace ClassicUO.Game.Managers;
 
 public class DiscordManager
 {
-    public static DiscordManager Instance { get; } = new DiscordManager();
+    public static DiscordManager Instance { get; private set; }
 
     private const string TUOLOBBY = "TazUODiscordSocialSDKLobby";
     private const ulong CLIENT_ID = 1255990139499577377;
     //Commited on purpose, this is a public discord bot that for some reason the social sdk requires, even though it connects to the player's account :thinking:
     private const int MAX_MSG_HISTORY = 75;
 
-    private static Dictionary<string, string> TUOMETA = new Dictionary<string, string>()
+    private static Dictionary<string, string> _tuometa = new Dictionary<string, string>()
     {
         { "name", "TazUO - Global" }
     };
 
-    public string StatusText => statusText;
-    public bool Connected => connected;
-    public Dictionary<ulong, List<MessageHandle>> MessageHistory => messageHistory;
+    public string StatusText => _statusText;
+    public bool Connected => _connected;
+    public Dictionary<ulong, List<MessageHandle>> MessageHistory => _messageHistory;
     public ulong UserId { get; private set; }
+    public MessageHandle LastPrivateMessage { get; private set; }
 
     public static DiscordSettings DiscordSettings { get; private set; }
 
@@ -61,31 +63,34 @@ public class DiscordManager
 
     #endregion
 
-    private DClient client;
-    private string codeVerifier;
-    private bool authBegan, connected, noreconnect;
-    private string statusText = "Ready to connect...";
+    private DClient _client;
+    private string _codeVerifier;
+    private bool _authBegan, _connected, _noreconnect;
+    private string _statusText = "Ready to connect...";
 
-    private Dictionary<ulong, List<MessageHandle>> messageHistory = new();
-    private static Dictionary<ulong, Color> userHueMemory = new();
-    private Dictionary<ulong, LobbyHandle> currentLobbies = new();
-    private Timer richPresenceTimer;
+    private Dictionary<ulong, List<MessageHandle>> _messageHistory = new();
+    private static Dictionary<ulong, Color> _userHueMemory = new();
+    private Dictionary<ulong, LobbyHandle> _currentLobbies = new();
+    private World _world;
+    private Timer _richPresenceTimer;
 
-    private int disconnectAttempts = 0;
-    int pendingDisconnectLeaves;
+    private int _disconnectAttempts = 0;
+    int _pendingDisconnectLeaves;
 
-    private DiscordManager()
+    internal DiscordManager(World world)
     {
+        Instance = this;
+        _world = world;
         LoadDiscordSettings();
 
-        client = new DClient();
-        
-        client.AddLogCallback(OnLog, LoggingSeverity.Error);
-        client.SetStatusChangedCallback(OnStatusChanged);
-        client.SetMessageCreatedCallback(OnMessageCreated);
-        client.SetUserUpdatedCallback(OnUserUpdatedCallback);
-        client.SetLobbyCreatedCallback(OnLobbyCreatedCallback);
-        client.SetLobbyDeletedCallback(OnLobbyDeletedCallback);
+        _client = new DClient();
+
+        _client.AddLogCallback(OnLog, LoggingSeverity.Error);
+        _client.SetStatusChangedCallback(OnStatusChanged);
+        _client.SetMessageCreatedCallback(OnMessageCreated);
+        _client.SetUserUpdatedCallback(OnUserUpdatedCallback);
+        _client.SetLobbyCreatedCallback(OnLobbyCreatedCallback);
+        _client.SetLobbyDeletedCallback(OnLobbyDeletedCallback);
         EventSink.OnConnected += OnUOConnected;
         EventSink.OnPlayerCreated += OnPlayerCreated;
         EventSink.OnDisconnected += OnUODisconnected;
@@ -93,7 +98,7 @@ public class DiscordManager
 
     public void Update()
     {
-        if (authBegan)
+        if (_authBegan)
         {
             Discord.Sdk.NativeMethods.Discord_RunCallbacks();
         }
@@ -101,42 +106,43 @@ public class DiscordManager
 
     public void BeginDisconnect()
     {
-        if (!connected)
+        if (!_connected)
             return;
 
+        _richPresenceTimer?.Dispose();
         Log.Debug("Discord disconnecting..");
 
-        if (noreconnect)
+        if (_noreconnect)
             return;
 
-        noreconnect = true;
+        _noreconnect = true;
 
-        pendingDisconnectLeaves = currentLobbies.Count;
+        _pendingDisconnectLeaves = _currentLobbies.Count;
 
-        if (pendingDisconnectLeaves == 0)
+        if (_pendingDisconnectLeaves == 0)
         {
-            client.Disconnect();
+            _client.Disconnect();
 
             return;
         }
 
-        foreach (var lobbyId in currentLobbies.Keys.ToList())
+        foreach (ulong lobbyId in _currentLobbies.Keys.ToList())
         {
-            client.LeaveLobby
+            _client.LeaveLobby
             (
                 lobbyId, result =>
                 {
-                    pendingDisconnectLeaves--;
+                    _pendingDisconnectLeaves--;
 
                     if (!result.Successful())
                         Log.Error($"Failed to leave lobby {lobbyId}: {result.Error()}");
                     else
                         Log.Debug($"Left lobby {lobbyId}");
 
-                    if (pendingDisconnectLeaves == 0)
+                    if (_pendingDisconnectLeaves == 0)
                     {
                         Log.Debug("Final discord disconnect.");
-                        client.Disconnect();
+                        _client.Disconnect();
                     }
                 }
             );
@@ -147,31 +153,31 @@ public class DiscordManager
     {
         SaveDiscordSettings();
 
-        if (!connected)
+        if (!_connected)
             return;
 
         //Yes we're going to freeze the game for a bit, this is called after everything is unloaded already.
         //This would not work in a task, so this is our last resort
-        while (pendingDisconnectLeaves > 0)
+        while (_pendingDisconnectLeaves > 0)
         {
-            if (disconnectAttempts > 200) //~2 seconds
+            if (_disconnectAttempts > 200) //~2 seconds
                 return;
 
             Discord.Sdk.NativeMethods.Discord_RunCallbacks();
             Thread.Sleep(10);
-            disconnectAttempts++;
+            _disconnectAttempts++;
         }
     }
 
     public IEnumerable<LobbyHandle> GetLobbies()
     {
-        var lobbies = client.GetLobbyIds();
+        ulong[] lobbies = _client.GetLobbyIds();
 
         List<LobbyHandle> handles = new();
 
-        foreach (var lobby in lobbies)
+        foreach (ulong lobby in lobbies)
         {
-            var h = client.GetLobbyHandle(lobby);
+            LobbyHandle h = _client.GetLobbyHandle(lobby);
 
             if (h != null)
                 handles.Add(h);
@@ -182,7 +188,7 @@ public class DiscordManager
 
     public string GetLobbyName(LobbyHandle handle)
     {
-        var meta = handle.Metadata();
+        Dictionary<string, string> meta = handle.Metadata();
 
         if (meta.ContainsKey("name"))
         {
@@ -194,24 +200,24 @@ public class DiscordManager
 
     public IEnumerable<RelationshipHandle> GetFriends()
     {
-        if (!connected)
+        if (!_connected)
             return null;
 
-        return client.GetRelationships();
+        return _client.GetRelationships();
     }
 
-    public ChannelHandle GetChannel(ulong channelId) => client.GetChannelHandle(channelId);
+    public ChannelHandle GetChannel(ulong channelId) => _client.GetChannelHandle(channelId);
 
-    public LobbyHandle GetLobby(ulong lobbyId) => client.GetLobbyHandle(lobbyId);
+    public LobbyHandle GetLobby(ulong lobbyId) => _client.GetLobbyHandle(lobbyId);
 
-    public UserHandle GetUser(ulong userId) => client.GetUser(userId);
+    public UserHandle GetUser(ulong userId) => _client.GetUser(userId);
 
-    public void SendDM(ulong id, string message)
+    public void SendDm(ulong id, string message)
     {
         if (string.IsNullOrEmpty(message))
             return;
 
-        client.SendUserMessage(id, message, SendUserMessageCallback);
+        _client.SendUserMessage(id, message, SendUserMessageCallback);
     }
 
     public void SendChannelMsg(ulong channelId, string message)
@@ -219,77 +225,79 @@ public class DiscordManager
         if (string.IsNullOrEmpty(message))
             return;
 
-        client.SendLobbyMessage(channelId, message, SendUserMessageCallback);
+        _client.SendLobbyMessage(channelId, message, SendUserMessageCallback);
     }
 
-    public void StartCall(ulong channel)
+    public void SendChannelItem(ulong channelId, Item item, bool isDm)
     {
-        client.StartCall(channel);
+        if (item == null)
+            return;
+
+        Dictionary<string, string> metadata = new();
+
+        metadata["graphic"] = item.Graphic.ToString();
+        metadata["hue"] = item.Hue.ToString();
+
+        if (_world.OPL.TryGetNameAndData(item.Serial, out string name, out string data))
+        {
+            metadata["name"] = name;
+            metadata["data"] = data;
+        }
+        else
+        {
+            metadata["name"] = item.Name;
+        }
+
+        if(isDm)
+            _client.SendUserMessageWithMetadata(channelId, string.IsNullOrEmpty(metadata["name"]) ? "Checkout this item!" : metadata["name"], metadata, SendUserMessageCallback);
+        else
+            _client.SendLobbyMessageWithMetadata(channelId, string.IsNullOrEmpty(metadata["name"]) ? "Checkout this item!" : metadata["name"], metadata, SendUserMessageCallback);
     }
 
-    public void EndCall(ulong channel)
-    {
-        client.EndCall(channel, EndVoiceCallCallback);
-    }
+    public void StartCall(ulong channel) => _client.StartCall(channel);
 
-    public Call GetCall(ulong channelId)
-    {
-        return client.GetCall(channelId);
-    }
-    
+    public void EndCall(ulong channel) => _client.EndCall(channel, EndVoiceCallCallback);
+
+    public Call GetCall(ulong channelId) => _client.GetCall(channelId);
+
     private void AddMsgHistory(ulong id, MessageHandle msg)
     {
-        if (!messageHistory.ContainsKey(id))
-            messageHistory.Add(id, new List<MessageHandle>());
+        if (!_messageHistory.ContainsKey(id))
+            _messageHistory.Add(id, new List<MessageHandle>());
 
-        var list = messageHistory[id];
+        List<MessageHandle> list = _messageHistory[id];
         list.Add(msg);
 
-        var excess = list.Count - MAX_MSG_HISTORY;
+        int excess = list.Count - MAX_MSG_HISTORY;
 
         if (excess > 0)
             list.RemoveRange(0, excess);
     }
 
-    private void OnUOConnected(object sender, EventArgs e)
-    {
-        RunLater(JoinGameLobby);
-    }
+    private void OnUOConnected(object sender, EventArgs e) => RunLater(JoinGameLobby);
 
-    private void OnPlayerCreated(object sender, EventArgs e)
-    {
-        RunLater(()=>UpdateRichPresence(true));
-    }
+    private void OnPlayerCreated(object sender, EventArgs e) => RunLater(() => UpdateRichPresence(true));
 
-    private void OnUODisconnected(object sender, EventArgs e)
-    {
-        client.UpdateRichPresence(new Activity(), OnUpdateRichPresence); //Reset presence
-    }
+    private void OnUODisconnected(object sender, EventArgs e) => _client.UpdateRichPresence(new Activity(), OnUpdateRichPresence); //Reset presence
 
     private void ClientReady()
     {
-        UserId = client.GetCurrentUser().Id();
+        UserId = _client.GetCurrentUser().Id();
 
-        connected = true;
+        _connected = true;
         OnConnected?.Invoke();
 
         RunLater(JoinGlobalLobby);
-        
-        richPresenceTimer = new Timer(_=>PeriodicChecks(), null, TimeSpan.FromMinutes(30), TimeSpan.FromMinutes(30));
+
+        _richPresenceTimer = new Timer(_=>PeriodicChecks(), null, TimeSpan.FromMinutes(30), TimeSpan.FromMinutes(30));
     }
 
-    private string GenServerSecret()
-    {
-        return World.ServerName + Settings.GlobalSettings.IP;
-    }
+    private string GenServerSecret() => _world.ServerName + Settings.GlobalSettings.IP;
 
-    private Dictionary<string, string> GenServerMeta()
-    {
-        return new Dictionary<string, string>()
+    private Dictionary<string, string> GenServerMeta() => new Dictionary<string, string>()
         {
-            { "name", World.ServerName }
+            { "name", _world.ServerName }
         };
-    }
 
     private void PeriodicChecks()
     {
@@ -298,33 +306,35 @@ public class DiscordManager
         RunLater(()=>UpdateRichPresence());
     }
 
-    private static long furthestAction;
+    private static long _furthestAction;
 
-    private static async void RunLater(Action action)
+    private static async void RunLater(Action action, long minDuration = 2000)
     {
         long now = Time.Ticks;
 
         // Schedule at least 1s after the last one, or now if no pending delay
-        if (now > furthestAction)
-            furthestAction = now;
+        if (now > _furthestAction)
+            _furthestAction = now;
 
-        furthestAction += 2000; // push it forward by 1 second per action
+        _furthestAction += minDuration;
 
-        int delayMs = (int)(furthestAction - now);
+        int delayMs = (int)(_furthestAction - now);
         await Task.Delay(delayMs);
 
         action();
     }
 
-    private static ulong unixStart = (ulong)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+    private static ulong _unixStart = (ulong)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
     private void UpdateRichPresence(bool includeParty = true)
     {
+        if (!_connected) return;
+
         Log.Debug("Updating rich presence.");
-        Activity activity = new Activity();
+        var activity = new Activity();
         activity.SetName("Ultima Online");
         activity.SetType(ActivityTypes.Playing);
 
-        if (includeParty && World.InGame)
+        if (includeParty && _world.InGame)
         {
             var party = new ActivityParty();
             party.SetPrivacy(ActivityPartyPrivacy.Public);
@@ -332,21 +342,21 @@ public class DiscordManager
             party.SetMaxSize(1);
 
             party.SetId
-                (new ServerInfo(Settings.GlobalSettings.IP, Settings.GlobalSettings.Port.ToString(), World.ServerName, World.Player == null ? 0 : World.Player.Serial).ToJson());
+                (new ServerInfo(Settings.GlobalSettings.IP, Settings.GlobalSettings.Port.ToString(), _world.ServerName, _world.Player == null ? 0 : _world.Player.Serial).ToJson());
 
             activity.SetParty(party);
         }
 
         var ts = new ActivityTimestamps();
-        ts.SetStart(unixStart);
+        ts.SetStart(_unixStart);
         activity.SetTimestamps(ts);
 
-        client.UpdateRichPresence(activity, OnUpdateRichPresence);
+        RunLater(() => _client.UpdateRichPresence(activity, OnUpdateRichPresence));
     }
 
     private void SetStatusText(string text)
     {
-        statusText = text;
+        _statusText = text;
         OnStatusTextUpdated?.Invoke();
     }
 
@@ -354,7 +364,7 @@ public class DiscordManager
 
     private void LoadDiscordSettings()
     {
-        var path = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "DiscordSettings.json");
+        string path = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "DiscordSettings.json");
 
         if (!File.Exists(path))
         {
@@ -377,7 +387,7 @@ public class DiscordManager
 
     public void SaveDiscordSettings()
     {
-        var path = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "DiscordSettings.json");
+        string path = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "DiscordSettings.json");
 
         try
         {
@@ -391,10 +401,10 @@ public class DiscordManager
 
     public static Color GetUserhue(ulong id)
     {
-        if (!userHueMemory.ContainsKey(id))
-            userHueMemory.Add(id, GetColorFromId(id));
+        if (!_userHueMemory.ContainsKey(id))
+            _userHueMemory.Add(id, GetColorFromId(id));
 
-        return userHueMemory[id];
+        return _userHueMemory[id];
     }
 
     private static Color GetColorFromId(ulong id)
@@ -431,7 +441,7 @@ public class DiscordManager
     {
         //Do nothing
     }
-    
+
     private void SendUserMessageCallback(ClientResult result, ulong messageId)
     {
         if (!result.Successful())
@@ -442,75 +452,63 @@ public class DiscordManager
 
     private void OnLobbyCreatedCallback(ulong lobbyId)
     {
-        if (!currentLobbies.ContainsKey(lobbyId))
-            currentLobbies.Add(lobbyId, client.GetLobbyHandle(lobbyId));
+        if (!_currentLobbies.ContainsKey(lobbyId))
+            _currentLobbies.Add(lobbyId, _client.GetLobbyHandle(lobbyId));
 
-        OnLobbyCreated?.Invoke(currentLobbies[lobbyId]);
+        OnLobbyCreated?.Invoke(_currentLobbies[lobbyId]);
     }
 
-    private void JoinGlobalLobby()
-    { 
-        client.CreateOrJoinLobbyWithMetadata(TUOLOBBY, TUOMETA, new Dictionary<string, string>(), GameGameJoinCallback);
-    }
+    private void JoinGlobalLobby() => _client.CreateOrJoinLobbyWithMetadata(TUOLOBBY, _tuometa, new Dictionary<string, string>(), GameGameJoinCallback);
     private void JoinGameLobby()
     {
-        if (World.InGame)
-            client.CreateOrJoinLobbyWithMetadata(GenServerSecret(), GenServerMeta(), new Dictionary<string, string>(), GameLobbyJoinCallback);
+        if (_world.InGame)
+            _client.CreateOrJoinLobbyWithMetadata(GenServerSecret(), GenServerMeta(), new Dictionary<string, string>(), GameLobbyJoinCallback);
     }
 
     private void GameGameJoinCallback(ClientResult result, ulong lobbyId)
     {
         if (!result.Successful())
         {
-            long now = Time.Ticks;
-            furthestAction = Math.Max(furthestAction, now);
-            furthestAction += 500 + (long)(result.RetryAfter()*1000);
-            RunLater(JoinGameLobby);
+            RunLater(JoinGameLobby, 500 + (long)(result.RetryAfter()*1000));
         }
     }
     private void GameLobbyJoinCallback(ClientResult result, ulong lobbyId)
     {
         if (!result.Successful())
         {
-            long now = Time.Ticks;
-            furthestAction = Math.Max(furthestAction, now);
-            furthestAction += 500 + (long)(result.RetryAfter()*1000);
-            RunLater(JoinGameLobby);
+            RunLater(JoinGameLobby, 500 + (long)(result.RetryAfter()*1000));
         }
     }
 
     private void OnLobbyDeletedCallback(ulong lobbyId)
     {
-        currentLobbies.Remove(lobbyId);
-        
-        if(!noreconnect)
+        _currentLobbies.Remove(lobbyId);
+
+        if(!_noreconnect)
         {
-            if(connected)
-            { 
+            if(_connected)
+            {
                 RunLater(JoinGlobalLobby);
                 RunLater(JoinGameLobby);
             }
         }
-        
+
         OnLobbyDeleted?.Invoke(lobbyId);
     }
 
-    private void OnUserUpdatedCallback(ulong userId)
-    {
-        OnUserUpdated?.Invoke();
-    }
+    private void OnUserUpdatedCallback(ulong userId) => OnUserUpdated?.Invoke();
 
     private void OnMessageCreated(ulong messageId)
     {
-        var msg = client.GetMessageHandle(messageId);
+        MessageHandle msg = _client.GetMessageHandle(messageId);
 
         if (msg == null)
             return;
 
-        var id = msg.ChannelId();
-        var channel = msg.Channel(); //This msg may be a lobby, which is not a Channel.
-        var lobby = msg.Lobby();
-        var author = msg.Author();
+        ulong id = msg.ChannelId();
+        ChannelHandle channel = msg.Channel(); //This msg may be a lobby, which is not a Channel.
+        LobbyHandle lobby = msg.Lobby();
+        UserHandle author = msg.Author();
         bool isdm = false;
 
         if (channel?.Type() == ChannelType.Dm)
@@ -521,6 +519,8 @@ public class DiscordManager
 
             if (id == UserId)           //Message was sent by us
                 id = msg.RecipientId(); //Put this into the msg history for this user
+            else
+                LastPrivateMessage = msg;
         }
 
         AddMsgHistory(id, msg);
@@ -535,13 +535,10 @@ public class DiscordManager
             chan = channel != null ? channel.Name() : ((lobby != null) ? GetLobbyName(lobby) : "Discord");
 
         if ((isdm && DiscordSettings.ShowDMInGame) || (!isdm && DiscordSettings.ShowChatInGame))
-            MessageManager.HandleMessage(null, $"{msg.Content()}", $"[{chan}] {author.DisplayName()}", GetHueFromId(author.Id()), MessageType.ChatSystem, 255, TextType.SYSTEM);
+            _world.MessageManager.HandleMessage(null, $"{msg.Content()}", $"[{chan}] {author.DisplayName()}", GetHueFromId(author.Id()), MessageType.ChatSystem, 255, TextType.SYSTEM);
     }
 
-    private static void OnLog(string message, LoggingSeverity severity)
-    {
-        Log.Debug($"Log: {severity} - {message}");
-    }
+    private static void OnLog(string message, LoggingSeverity severity) => Log.Debug($"Log: {severity} - {message}");
 
     private void OnStatusChanged(DClient.Status status, DClient.Error error, int errorCode)
     {
@@ -557,13 +554,13 @@ public class DiscordManager
         {
             case DClient.Status.Disconnecting:
             case DClient.Status.Disconnected:
-                connected = false;
+                _connected = false;
 
-                if (noreconnect)
+                if (_noreconnect)
                     break;
 
                 Log.Debug("Discord disconnected, reconnecting...");
-                client.Connect();
+                _client.Connect();
 
                 break;
 
@@ -584,20 +581,20 @@ public class DiscordManager
     {
         Log.Debug("Starting Discord OAuth handshakes");
         SetStatusText("Attempting to connect...");
-        var authorizationVerifier = client.CreateAuthorizationCodeVerifier();
-        codeVerifier = authorizationVerifier.Verifier();
+        AuthorizationCodeVerifier authorizationVerifier = _client.CreateAuthorizationCodeVerifier();
+        _codeVerifier = authorizationVerifier.Verifier();
 
         var args = new AuthorizationArgs();
         args.SetClientId(CLIENT_ID);
         args.SetScopes(DClient.GetDefaultCommunicationScopes());
         args.SetCodeChallenge(authorizationVerifier.Challenge());
-        client.Authorize(args, OnAuthorizeResult);
-        authBegan = true;
+        _client.Authorize(args, OnAuthorizeResult);
+        _authBegan = true;
     }
 
     public void FromSavedToken()
     {
-        var rpath = Path.Combine(CUOEnviroment.ExecutablePath, "Data", ".dratoken");
+        string rpath = Path.Combine(CUOEnviroment.ExecutablePath, "Data", ".dratoken");
 
         if (!File.Exists(rpath))
             return;
@@ -606,10 +603,10 @@ public class DiscordManager
 
         try
         {
-            var rtoken = Crypter.Decrypt(File.ReadAllText(rpath));
+            string rtoken = Crypter.Decrypt(File.ReadAllText(rpath));
 
-            client.RefreshToken(CLIENT_ID, rtoken, OnTokenExchangeCallback);
-            authBegan = true;
+            _client.RefreshToken(CLIENT_ID, rtoken, OnTokenExchangeCallback);
+            _authBegan = true;
         }
         catch (Exception e)
         {
@@ -644,10 +641,7 @@ public class DiscordManager
         GetTokenFromCode(code, redirectUri);
     }
 
-    private void GetTokenFromCode(string code, string redirectUri)
-    {
-        client.GetToken(CLIENT_ID, code, codeVerifier, redirectUri, TokenExchangeCallback);
-    }
+    private void GetTokenFromCode(string code, string redirectUri) => _client.GetToken(CLIENT_ID, code, _codeVerifier, redirectUri, TokenExchangeCallback);
 
     private void TokenExchangeCallback(ClientResult result, string token, string refreshToken, AuthorizationTokenType tokenType, int expiresIn, string scopes)
     {
@@ -676,13 +670,10 @@ public class DiscordManager
             Log.Error(e.ToString());
         }
 
-        client.UpdateToken(AuthorizationTokenType.Bearer, token, (ClientResult result) => { client.Connect(); });
+        _client.UpdateToken(AuthorizationTokenType.Bearer, token, (ClientResult result) => { _client.Connect(); });
     }
 
-    private void OnRetrieveTokenFailed()
-    {
-        SetStatusText("Failed to retrieve token");
-    }
+    private void OnRetrieveTokenFailed() => SetStatusText("Failed to retrieve token");
 
     #endregion
 }
@@ -709,15 +700,9 @@ public struct ServerInfo(string ip, string port, string name, uint playerSerial)
     public string Name { get; set; } = name;
     public uint PlayerSerial { get; set; } = playerSerial;
 
-    public string ToJson()
-    {
-        return JsonSerializer.Serialize(new ServerInfo(Ip, Port, Name, PlayerSerial), ServerInfoJsonContext.Default.ServerInfo);
-    }
+    public string ToJson() => JsonSerializer.Serialize(new ServerInfo(Ip, Port, Name, PlayerSerial), ServerInfoJsonContext.Default.ServerInfo);
 
-    public static ServerInfo FromJson(string json)
-    {
-        return JsonSerializer.Deserialize(json, ServerInfoJsonContext.Default.ServerInfo);
-    }
+    public static ServerInfo FromJson(string json) => JsonSerializer.Deserialize(json, ServerInfoJsonContext.Default.ServerInfo);
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]

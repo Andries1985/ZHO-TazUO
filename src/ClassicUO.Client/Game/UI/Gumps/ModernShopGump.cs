@@ -12,7 +12,7 @@ using System.Linq;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class ModernShopGump : Gump
+    public class ModernShopGump : Gump
     {
         private int WIDTH = 450;
 
@@ -31,7 +31,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private int itemY = 0;
 
-        public ModernShopGump(uint serial, bool isPurchaseGump) : base(serial, 0)
+        public ModernShopGump(World world, uint serial, bool isPurchaseGump) : base(world, serial, 0)
         {
             #region VARS
             Width = WIDTH;
@@ -101,10 +101,7 @@ namespace ClassicUO.Game.UI.Gumps
             Add(border = new SimpleBorder() { Width = Width, Height = Height, Hue = 0, Alpha = 0.3f });
         }
 
-        private void ResizeDrag_MouseUp(object sender, Input.MouseEventArgs e)
-        {
-            dragging = false;
-        }
+        private void ResizeDrag_MouseUp(object sender, Input.MouseEventArgs e) => dragging = false;
 
         private void ResizeDrag_MouseDown(object sender, Input.MouseEventArgs e)
         {
@@ -149,6 +146,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public void AddItem
             (
+                World world,
                 uint serial,
                 ushort graphic,
                 ushort hue,
@@ -160,7 +158,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (IsDisposed)
                 return;
-            ShopItem _ = new ShopItem(serial, graphic, hue, amount, price, name, scrollArea.Width - scrollArea.ScrollBarWidth(), 50, isPurchaseGump, LocalSerial);
+            var _ = new ShopItem(world, serial, graphic, hue, amount, price, name, scrollArea.Width - scrollArea.ScrollBarWidth(), 50, isPurchaseGump, LocalSerial);
             _.Y = itemY;
             scrollArea.Add(_);
             shopItems.Add(_);
@@ -171,7 +169,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             text = text.ToLower();
 
-            List<ShopItem> remove = new List<ShopItem>();
+            var remove = new List<ShopItem>();
             foreach (ShopItem i in scrollArea.Children.OfType<ShopItem>()) //Remove current shop items
                 remove.Add(i);
             foreach (ShopItem i in remove)
@@ -192,15 +190,17 @@ namespace ClassicUO.Game.UI.Gumps
 
         private class ShopItem : Control
         {
-            AlphaBlendControl backgound;
-            Area itemInfo, purchaseSell;
-            BuySellButton buySellButton;
+            private AlphaBlendControl backgound;
+            private Area itemInfo, purchaseSell;
+            private BuySellButton buySellButton;
             private readonly bool isPurchase;
             private readonly uint gumpSerial;
-            TextBox textBoxName;
+            private TextBox textBoxName;
+            private World world;
 
-            public ShopItem(uint serial, ushort graphic, ushort hue, int count, uint price, string name, int width, int height, bool isPurchase, uint gumpSerial)
+            public ShopItem(World world, uint serial, ushort graphic, ushort hue, int count, uint price, string name, int width, int height, bool isPurchase, uint gumpSerial)
             {
+                this.world = world;
                 Serial = serial;
                 Graphic = graphic;
                 Hue = hue;
@@ -263,7 +263,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 buySellButton.MouseUp += (sender, e) =>
                 {
-                    Dictionary<uint, ushort> theItem = new Dictionary<uint, ushort>
+                    var theItem = new Dictionary<uint, ushort>
                     {
                         { serial, (ushort)quantity.Value }
                     };
@@ -272,12 +272,12 @@ namespace ClassicUO.Game.UI.Gumps
 
                     if (isPurchase)
                     {
-                        NetClient.Socket.Send_BuyRequest(gumpSerial, item);
+                        AsyncNetClient.Socket.Send_BuyRequest(gumpSerial, item);
                         count -= quantity.Value;
                     }
                     else
                     {
-                        NetClient.Socket.Send_SellRequest(gumpSerial, item);
+                        AsyncNetClient.Socket.Send_SellRequest(gumpSerial, item);
                         count -= quantity.Value;
                     }
 
@@ -316,7 +316,7 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     if (Keyboard.Shift)
                     {
-                        Dictionary<uint, ushort> theItem = new Dictionary<uint, ushort>
+                        var theItem = new Dictionary<uint, ushort>
                         {
                             { Serial, (ushort)Count }
                         };
@@ -325,11 +325,11 @@ namespace ClassicUO.Game.UI.Gumps
 
                         if (isPurchase)
                         {
-                            NetClient.Socket.Send_BuyRequest(gumpSerial, item);
+                            AsyncNetClient.Socket.Send_BuyRequest(gumpSerial, item);
                         }
                         else
                         {
-                            NetClient.Socket.Send_SellRequest(gumpSerial, item);
+                            AsyncNetClient.Socket.Send_SellRequest(gumpSerial, item);
                         }
                         Dispose();
                     }
@@ -364,13 +364,13 @@ namespace ClassicUO.Game.UI.Gumps
                     }
 
                     byte group = GetAnimGroup(graphic);
-                    var frames = Client.Game.Animations.GetAnimationFrames(graphic, group, 1, out var hue2, out _, true);
+                    Span<SpriteInfo> frames = Client.Game.UO.Animations.GetAnimationFrames(graphic, group, 1, out ushort hue2, out _, true);
 
                     if (frames.Length != 0)
                     {
-                        hueVector = ShaderHueTranslator.GetHueVector(hue2, TileDataLoader.Instance.StaticData[Graphic].IsPartialHue, 1f);
+                        hueVector = ShaderHueTranslator.GetHueVector(hue2, Client.Game.UO.FileManager.TileData.StaticData[Graphic].IsPartialHue, 1f);
 
-                        ref var spriteInfo = ref frames[0];
+                        ref SpriteInfo spriteInfo = ref frames[0];
 
                         if (spriteInfo.Texture != null)
                         {
@@ -392,14 +392,14 @@ namespace ClassicUO.Game.UI.Gumps
                 }
                 else
                 {
-                    ref readonly var texture = ref Client.Game.Arts.GetArt((uint)Graphic);
+                    ref readonly SpriteInfo texture = ref Client.Game.UO.Arts.GetArt((uint)Graphic);
 
-                    hueVector = ShaderHueTranslator.GetHueVector(Hue, TileDataLoader.Instance.StaticData[Graphic].IsPartialHue, 1f);
+                    hueVector = ShaderHueTranslator.GetHueVector(Hue, Client.Game.UO.FileManager.TileData.StaticData[Graphic].IsPartialHue, 1f);
 
-                    var rect = Client.Game.Arts.GetRealArtBounds(Graphic);
+                    Rectangle rect = Client.Game.UO.Arts.GetRealArtBounds(Graphic);
 
-                    Point originalSize = new Point(Height, Height);
-                    Point point = new Point();
+                    var originalSize = new Point(Height, Height);
+                    var point = new Point();
 
                     if (rect.Width < Height)
                     {
@@ -439,8 +439,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             private static byte GetAnimGroup(ushort graphic)
             {
-                var groupType = Client.Game.Animations.GetAnimType(graphic);
-                switch (AnimationsLoader.Instance.GetGroupIndex(graphic, groupType))
+                AnimationGroupsType groupType = Client.Game.UO.Animations.GetAnimType(graphic);
+                switch (Client.Game.UO.FileManager.Animations.GetGroupIndex(graphic, groupType))
                 {
                     case AnimationGroups.Low:
                         return (byte)LowAnimationGroup.Stand;
@@ -459,7 +459,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 if (Name.ToLower().Contains(text))
                     return true;
-                if (World.OPL.TryGetNameAndData(Serial, out string name, out string data))
+                if (world.OPL.TryGetNameAndData(Serial, out string name, out string data))
                 {
                     if (data.ToLower().Contains(text))
                         return true;

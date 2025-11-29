@@ -11,12 +11,12 @@ using ClassicUO.Renderer;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using SDL2;
+using SDL3;
 using static ClassicUO.Game.UI.Gumps.GridHighLight.GridHighlightMenu;
 
 namespace ClassicUO.Game.UI
 {
-    internal class NearbyLootGump : Gump
+    public class NearbyLootGump : Gump
     {
         public const int WIDTH = 250;
 
@@ -31,7 +31,7 @@ namespace ClassicUO.Game.UI
             }
         }
 
-        private readonly ScrollArea _scrollArea;
+        private readonly ModernScrollArea _scrollArea;
         private readonly VBoxContainer _dataBox;
         private readonly NiceButton _lootButton;
         private readonly AlphaBlendControl _alphaBg;
@@ -45,12 +45,13 @@ namespace ClassicUO.Game.UI
         private static readonly HashSet<uint> _openedCorpses = new HashSet<uint>();
         private static int _selectedIndex;
         private static Point _lastLocation;
+        private World world;
         private long _nextClean = 0;
 
-        public NearbyLootGump() : base(0, 0)
+        public NearbyLootGump(World world) : base(world, 0, 0)
         {
             UIManager.GetGump<NearbyLootGump>()?.Dispose();
-
+            this.world = world;
             CanMove = true;
             AcceptMouseInput = true;
             AcceptKeyboardInput = true;
@@ -101,13 +102,16 @@ namespace ClassicUO.Game.UI
             {
                 if (e.Button != MouseButtonType.Left) return;
 
-                GameActions.Print(Resources.ResGumps.TargetContainerToGrabItemsInto);
-                TargetManager.SetTargeting(CursorTarget.SetGrabBag, 0, TargetType.Neutral);
+                GameActions.Print(World, Resources.ResGumps.TargetContainerToGrabItemsInto);
+                World.TargetManager.SetTargeting(CursorTarget.SetGrabBag, 0, TargetType.Neutral);
             };
 
-            Add(_scrollArea = new ScrollArea(0, _lootButton.Y + _lootButton.Height, Width, Height - _lootButton.Y - _lootButton.Height, true) { ScrollbarBehaviour = ScrollbarBehaviour.ShowAlways });
+            Add(_scrollArea = new ModernScrollArea(0, _lootButton.Y + _lootButton.Height, Width, Height - _lootButton.Y - _lootButton.Height)
+            {
+                ScrollbarBehaviour = ScrollbarBehaviour.ShowAlways
+            });
 
-            _scrollArea.Add(_dataBox = new(Width - 18));//(0, 0, Width, scrollArea.Height));
+            _scrollArea.Add(_dataBox = new(Width - 12));//ModernScrollArea uses 12px wide scrollbar
 
             Add(_resizeDrag = new HitBox(Width / 2 - 10, Height - 10, 20, 10, "Drag to resize", 0.50f));
             _resizeDrag.Add(new AlphaBlendControl(0.25f) { Width = 20, Height = 10, BaseColor = Color.OrangeRed });
@@ -130,15 +134,9 @@ namespace ClassicUO.Game.UI
                 RequestUpdateContents();
         }
 
-        private void EventSink_OnPositionChanged(object sender, PositionChangedArgs e)
-        {
-            RequestUpdateContents();
-        }
+        private void EventSink_OnPositionChanged(object sender, PositionChangedArgs e) => RequestUpdateContents();
 
-        private void ResizeDrag_MouseUp(object sender, MouseEventArgs e)
-        {
-            _dragging = false;
-        }
+        private void ResizeDrag_MouseUp(object sender, MouseEventArgs e) => _dragging = false;
 
         private void ResizeDrag_MouseDown(object sender, MouseEventArgs e)
         {
@@ -148,7 +146,7 @@ namespace ClassicUO.Game.UI
 
         private void EventSink_OnCorpseCreated(object sender, System.EventArgs e)
         {
-            Item item = (Item)sender;
+            var item = (Item)sender;
             if (!item.IsDestroyed && item.IsCorpse && item.Distance <= ProfileManager.CurrentProfile.AutoOpenCorpseRange)
             {
                 TryRequestOpenCorpse(item);
@@ -157,17 +155,17 @@ namespace ClassicUO.Game.UI
 
         private ContextMenuControl GenOptionsContext()
         {
-            var c = new ContextMenuControl();
+            var c = new ContextMenuControl(this);
             c.Add(new ContextMenuItemEntry("Open human corpses?", () =>
             {
                 ProfileManager.CurrentProfile.NearbyLootOpensHumanCorpses = !ProfileManager.CurrentProfile.NearbyLootOpensHumanCorpses;
                 RequestUpdateContents();
             }, true, ProfileManager.CurrentProfile.NearbyLootOpensHumanCorpses));
-            
+
             c.Add(new ContextMenuItemEntry("Hide containers when opening corpses?", () =>
             {
-               ProfileManager.CurrentProfile.NearbyLootConcealsContainerOnOpen = !ProfileManager.CurrentProfile.NearbyLootConcealsContainerOnOpen; 
-            }, true, ProfileManager.CurrentProfile.NearbyLootConcealsContainerOnOpen));;
+               ProfileManager.CurrentProfile.NearbyLootConcealsContainerOnOpen = !ProfileManager.CurrentProfile.NearbyLootConcealsContainerOnOpen;
+            }, true, ProfileManager.CurrentProfile.NearbyLootConcealsContainerOnOpen));
 
             return c;
         }
@@ -178,7 +176,7 @@ namespace ClassicUO.Game.UI
             _dataBox.Clear();
             _openedCorpses.Clear();
 
-            List<Item> finalItemList = new List<Item>();
+            var finalItemList = new List<Item>();
 
             foreach (Item item in World.Items.Values)
             {
@@ -196,7 +194,7 @@ namespace ClassicUO.Game.UI
 
             foreach (Item lootItem in finalItemList)
             {
-                _dataBox.Add(new NearbyItemDisplay(lootItem, _itemCount));
+                _dataBox.Add(new NearbyItemDisplay(world, lootItem, _itemCount));
                 _itemCount++;
             }
 
@@ -211,22 +209,23 @@ namespace ClassicUO.Game.UI
             if (corpse.Items != null)
             {
                 corpse.Hue = 53;
-                
+
                 if (_corpsesRequested.Contains(corpse))
                     _corpsesRequested.Remove(corpse);
 
                 _openedCorpses.Add(corpse);
                 for (LinkedObject i = corpse.Items; i != null; i = i.Next)
                 {
-                    Item item = (Item)i;
-                    
+                    var item = (Item)i;
+
                     if (item.IsCorpse)
                         ProcessCorpse(item, ref itemList);
-                    
+
                     if (item.Graphic == 0 || !item.IsLootable)
                         continue;
 
                     itemList.Add(item);
+                    GridHighlightData.ProcessItemOpl(world, item);
                 }
 
             }
@@ -293,18 +292,18 @@ namespace ClassicUO.Game.UI
 
             }
         }
-        protected override void OnControllerButtonDown(SDL.SDL_GameControllerButton button)
+        protected override void OnControllerButtonDown(SDL.SDL_GamepadButton button)
         {
             base.OnControllerButtonDown(button);
             switch (button)
             {
-                case SDL.SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_UP:
+                case SDL.SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_UP:
                     SelectedIndex--;
                     break;
-                case SDL.SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                case SDL.SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_DOWN:
                     SelectedIndex++;
                     break;
-                case SDL.SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_A:
+                case SDL.SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH:
                     LootSelectedIndex();
                     break;
             }
@@ -329,10 +328,10 @@ namespace ClassicUO.Game.UI
                     ProfileManager.CurrentProfile.NearbyLootGumpHeight = Height;
 
 
-                    _scrollArea.Height = Height - _lootButton.Y - _lootButton.Height;
+                    _scrollArea.UpdateHeight(Height - _lootButton.Y - _lootButton.Height);
                     _alphaBg.Height = Height;
                     _resizeDrag.Y = Height - 10;
-                    _scrollArea.SlowUpdate();//Recalculate scrollbar
+                    _scrollArea.UpdateScrollbarPosition();//Update scrollbar position for new dimensions
                 }
             }
 
@@ -350,14 +349,14 @@ namespace ClassicUO.Game.UI
         }
     }
 
-    internal class NearbyItemDisplay : Control
+    public class NearbyItemDisplay : Control
     {
         private const int ITEM_SIZE = 40;
         private Label itemLabel;
         private AlphaBlendControl alphaBG;
         private Item currentItem;
         private int index;
-        private readonly Texture2D borderTexture;
+        private World world;
 
         private ushort bgHue
         {
@@ -373,17 +372,18 @@ namespace ClassicUO.Game.UI
             }
         }
 
-        public NearbyItemDisplay(Item item, int index)
+        public NearbyItemDisplay(World world, Item item, int index)
         {
             if (item == null)
             {
                 Dispose();
                 return;
             }
-            borderTexture = SolidColorTextureCache.GetTexture(Color.White);
+            this.world = world;
+
             CanMove = true;
             AcceptMouseInput = true;
-            Width = NearbyLootGump.WIDTH - 18; //-18 for scroll bar
+            Width = NearbyLootGump.WIDTH - 12; //-12 for modern scroll bar
             Height = ITEM_SIZE;
             this.index = index;
 
@@ -423,7 +423,7 @@ namespace ClassicUO.Game.UI
                 itemLabel.Text = name;
             }
 
-            World.OPL.Contains(item);
+            world.OPL.Contains(item);
 
             SetTooltip(item);
         }
@@ -462,7 +462,7 @@ namespace ClassicUO.Game.UI
             if (Keyboard.Shift && currentItem != null && ProfileManager.CurrentProfile.EnableAutoLoot && !ProfileManager.CurrentProfile.HoldShiftForContext && !ProfileManager.CurrentProfile.HoldShiftToSplitStack)
             {
                 AutoLootManager.Instance.AddAutoLootEntry(currentItem.Graphic, currentItem.Hue, currentItem.Name);
-                GameActions.Print($"Added this item to auto loot.");
+                GameActions.Print(world, $"Added this item to auto loot.");
             }
 
             MoveItemQueue.Instance?.EnqueueQuick(currentItem); //Directly use move item queue instead of autoloot
@@ -474,12 +474,12 @@ namespace ClassicUO.Game.UI
 
             Vector3 hueVector = ShaderHueTranslator.GetHueVector(currentItem.Hue, currentItem.ItemData.IsPartialHue, 1, true);
 
-            ref readonly var texture = ref Client.Game.Arts.GetArt((uint)currentItem.DisplayedGraphic);
-            Rectangle _rect = Client.Game.Arts.GetRealArtBounds((uint)currentItem.DisplayedGraphic);
+            ref readonly SpriteInfo texture = ref Client.Game.UO.Arts.GetArt((uint)currentItem.DisplayedGraphic);
+            Rectangle _rect = Client.Game.UO.Arts.GetRealArtBounds((uint)currentItem.DisplayedGraphic);
 
 
-            Point _originalSize = new Point(ITEM_SIZE, ITEM_SIZE);
-            Point _point = new Point((ITEM_SIZE >> 1) - (_originalSize.X >> 1), (ITEM_SIZE >> 1) - (_originalSize.Y >> 1));
+            var _originalSize = new Point(ITEM_SIZE, ITEM_SIZE);
+            var _point = new Point((ITEM_SIZE >> 1) - (_originalSize.X >> 1), (ITEM_SIZE >> 1) - (_originalSize.Y >> 1));
 
             if (texture.Texture != null)
             {
@@ -533,7 +533,8 @@ namespace ClassicUO.Game.UI
                 int bx = x + 6;
                 int by = y + 6;
 
-                Vector3 borderHueVec = ShaderHueTranslator.GetHueVector(currentItem.HighlightHue, false, 0.8f);
+                var borderHueVec = new Vector3(1, 0, 1);
+                Texture2D borderTexture = SolidColorTextureCache.GetTexture(currentItem.HighlightColor);
 
                 batcher.Draw( //Top bar
                     borderTexture,

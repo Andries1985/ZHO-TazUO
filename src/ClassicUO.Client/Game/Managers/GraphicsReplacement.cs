@@ -2,13 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ClassicUO.Game.Managers
 {
+    [JsonSerializable(typeof(Dictionary<ushort, GraphicChangeFilter>))]
+    [JsonSerializable(typeof(GraphicChangeFilter))]
+    public partial class GraphicsReplacementJsonContext : JsonSerializerContext
+    {
+    }
     internal static class GraphicsReplacement
     {
         private static Dictionary<ushort, GraphicChangeFilter> graphicChangeFilters = new Dictionary<ushort, GraphicChangeFilter>();
-        public static Dictionary<ushort, GraphicChangeFilter> GraphicFilters { get { return graphicChangeFilters; } }
+        public static Dictionary<ushort, GraphicChangeFilter> GraphicFilters => graphicChangeFilters;
         private static HashSet<ushort> quickLookup = new HashSet<ushort>();
         public static void Load()
         {
@@ -16,8 +22,8 @@ namespace ClassicUO.Game.Managers
             {
                 try
                 {
-                    graphicChangeFilters = JsonSerializer.Deserialize<Dictionary<ushort, GraphicChangeFilter>>(File.ReadAllText(GetSavePath()));
-                    foreach (var filter in graphicChangeFilters)
+                    graphicChangeFilters = JsonSerializer.Deserialize(File.ReadAllText(GetSavePath()), GraphicsReplacementJsonContext.Default.DictionaryUInt16GraphicChangeFilter);
+                    foreach (KeyValuePair<ushort, GraphicChangeFilter> filter in graphicChangeFilters)
                         quickLookup.Add(filter.Key);
                 }
                 catch (Exception e)
@@ -33,7 +39,7 @@ namespace ClassicUO.Game.Managers
             {
                 try
                 {
-                    File.WriteAllText(GetSavePath(), JsonSerializer.Serialize<Dictionary<ushort, GraphicChangeFilter>>(graphicChangeFilters));
+                    File.WriteAllText(GetSavePath(), JsonSerializer.Serialize(graphicChangeFilters, GraphicsReplacementJsonContext.Default.DictionaryUInt16GraphicChangeFilter));
                 }
                 catch (Exception e)
                 {
@@ -53,7 +59,7 @@ namespace ClassicUO.Game.Managers
         {
             if (quickLookup.Contains(graphic))
             {
-                var filter = graphicChangeFilters[graphic];
+                GraphicChangeFilter filter = graphicChangeFilters[graphic];
                 newgraphic = filter.ReplacementGraphic;
                 if (filter.NewHue != ushort.MaxValue)
                     hue = filter.NewHue;
@@ -64,7 +70,7 @@ namespace ClassicUO.Game.Managers
         {
             if (quickLookup.Contains(graphic))
             {
-                var filter = graphicChangeFilters[graphic];
+                GraphicChangeFilter filter = graphicChangeFilters[graphic];
                 if (filter.NewHue != ushort.MaxValue)
                     hue = filter.NewHue;
             }
@@ -72,10 +78,10 @@ namespace ClassicUO.Game.Managers
 
         public static void ResetLists()
         {
-            Dictionary<ushort, GraphicChangeFilter> newList = new Dictionary<ushort, GraphicChangeFilter>();
+            var newList = new Dictionary<ushort, GraphicChangeFilter>();
             quickLookup.Clear();
 
-            foreach (var item in graphicChangeFilters)
+            foreach (KeyValuePair<ushort, GraphicChangeFilter> item in graphicChangeFilters)
             {
                 newList.Add(item.Value.OriginalGraphic, item.Value);
                 quickLookup.Add(item.Value.OriginalGraphic);
@@ -111,13 +117,10 @@ namespace ClassicUO.Game.Managers
                 quickLookup.Remove(originalGraphic);
         }
 
-        private static string GetSavePath()
-        {
-            return Path.Combine(CUOEnviroment.ExecutablePath, "Data", "MobileReplacementFilter.json");
-        }
+        private static string GetSavePath() => Path.Combine(CUOEnviroment.ExecutablePath, "Data", "MobileReplacementFilter.json");
     }
 
-    internal class GraphicChangeFilter
+    public class GraphicChangeFilter
     {
         public ushort OriginalGraphic { get; set; }
         public ushort ReplacementGraphic { get; set; }

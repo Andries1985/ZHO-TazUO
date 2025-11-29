@@ -2,7 +2,7 @@
 
 // Copyright (c) 2021, jaedan
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 // 1. Redistributions of source code must retain the above copyright
@@ -16,7 +16,7 @@
 // 4. Neither the name of the copyright holder nor the
 //    names of its contributors may be used to endorse or promote products
 //    derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,6 +30,7 @@
 
 #endregion
 
+using System;
 using ClassicUO.Utility.Logging;
 using FontStashSharp;
 using System.Collections.Generic;
@@ -43,7 +44,7 @@ namespace ClassicUO.Assets
     {
         public const string EMBEDDED_FONT = "Roboto-Regular";
 
-        private Dictionary<string, FontSystem> _fonts = new();
+        private readonly Dictionary<string, FontSystem> _fonts = new();
 
         private TrueTypeLoader()
         {
@@ -52,7 +53,9 @@ namespace ClassicUO.Assets
         private static TrueTypeLoader _instance;
         public static TrueTypeLoader Instance => _instance ??= new TrueTypeLoader();
 
-        public Task Load()
+        public byte[] ImGuiFont;
+
+        public void Load()
         {
             var settings = new FontSystemSettings
             {
@@ -61,12 +64,12 @@ namespace ClassicUO.Assets
                 KernelHeight = 2
             };
 
-            string _fontPath = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "Fonts");
+            string fontPath = Path.Combine(AppContext.BaseDirectory, "Fonts");
 
-            if (!Directory.Exists(_fontPath))
-                Directory.CreateDirectory(_fontPath);
+            if (!Directory.Exists(fontPath))
+                Directory.CreateDirectory(fontPath);
 
-            foreach (var ttf in Directory.GetFiles(_fontPath, "*.ttf"))
+            foreach (string ttf in Directory.GetFiles(fontPath, "*.ttf"))
             {
                 var fontSystem = new FontSystem(settings);
                 fontSystem.AddFont(File.ReadAllBytes(ttf));
@@ -75,8 +78,6 @@ namespace ClassicUO.Assets
             }
 
             LoadEmbeddedFonts();
-
-            return Task.CompletedTask;
         }
 
         private void LoadEmbeddedFonts()
@@ -88,29 +89,34 @@ namespace ClassicUO.Assets
                 KernelHeight = 2
             };
 
-            var assembly = this.GetType().Assembly;
+            System.Reflection.Assembly assembly = this.GetType().Assembly;
             string fontAssetFolder = assembly.GetName().Name + ".fonts";
             // Get all embedded resource names
-            var resourceNames = assembly.GetManifestResourceNames()
+            string[] resourceNames = assembly.GetManifestResourceNames()
                                         .Where(name => name.StartsWith(fontAssetFolder))
                                         .ToArray();
 
-            foreach (var resourceName in resourceNames)
+            foreach (string resourceName in resourceNames)
             {
                 Stream stream = assembly.GetManifestResourceStream(resourceName);
                 if (stream != null)
                     using (stream)
                     {
-                        var rnameParts = resourceName.Split('.');
+                        string[] rnameParts = resourceName.Split('.');
                         string fname = rnameParts[rnameParts.Length - 2];
 #if DEBUG
                         Log.Trace($"Loaded embedded font: {fname}");
 #endif
-
                         var memoryStream = new MemoryStream();
                         stream.CopyTo(memoryStream);
+
+                        byte[] filebytes = memoryStream.ToArray();
+
+                        if (fname == EMBEDDED_FONT) //Special case for ImGui
+                            ImGuiFont = filebytes;
+
                         var fontSystem = new FontSystem(settings);
-                        fontSystem.AddFont(memoryStream.ToArray());
+                        fontSystem.AddFont(filebytes);
                         _fonts[fname] = fontSystem;
                     }
             }
@@ -118,7 +124,7 @@ namespace ClassicUO.Assets
 
         public SpriteFontBase GetFont(string name, float size)
         {
-            if (_fonts.TryGetValue(name, out var font))
+            if (_fonts.TryGetValue(name, out FontSystem font))
             {
                 return font.GetFont(size);
             }
@@ -129,10 +135,7 @@ namespace ClassicUO.Assets
             return null;
         }
 
-        public SpriteFontBase GetFont(string name)
-        {
-            return GetFont(name, 12);
-        }
+        public SpriteFontBase GetFont(string name) => GetFont(name, 12);
 
         public string[] Fonts => _fonts.Keys.ToArray();
     }

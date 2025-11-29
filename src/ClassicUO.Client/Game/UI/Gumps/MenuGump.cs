@@ -1,38 +1,9 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System.Linq;
-using ClassicUO.Game.UI.Controls;
 using ClassicUO.Assets;
+using ClassicUO.Game.UI.Controls;
+using ClassicUO.LegionScripting;
 using ClassicUO.Network;
 using ClassicUO.Renderer;
 using ClassicUO.Utility.Logging;
@@ -40,14 +11,16 @@ using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class MenuGump : Gump
+    public class MenuGump : Gump
     {
         private readonly ContainerHorizontal _container;
         private bool _isDown,
             _isLeft;
         private readonly HSliderBar _slider;
+        public override bool ShouldBeSaved => false;
+        public override GumpType GumpType => GumpType.MenuGump;
 
-        public MenuGump(uint serial, uint serv, string name) : base(serial, serv)
+        public MenuGump(World world, uint serial, uint serv, string name) : base(world, serial, serv)
         {
             CanMove = true;
             AcceptMouseInput = true;
@@ -58,7 +31,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(new ColorBox(217, 49, 1) { X = 40, Y = 42 });
 
-            Label label = new Label(name, false, 0x0386, 200, 1, FontStyle.Fixed)
+            var label = new Label(name, false, 0x0386, 200, 1, FontStyle.Fixed)
             {
                 X = 39,
                 Y = 18
@@ -94,7 +67,7 @@ namespace ClassicUO.Game.UI.Gumps
                 _container.Value = _slider.Value;
             };
 
-            HitBox left = new HitBox(25, 60, 10, 15) { Alpha = 0f };
+            var left = new HitBox(25, 60, 10, 15) { Alpha = 0f };
 
             left.MouseDown += (sender, e) =>
             {
@@ -108,7 +81,7 @@ namespace ClassicUO.Game.UI.Gumps
             };
             Add(left);
 
-            HitBox right = new HitBox(260, 60, 10, 15) { Alpha = 0f };
+            var right = new HitBox(260, 60, 10, 15) { Alpha = 0f };
 
             right.MouseDown += (sender, e) =>
             {
@@ -143,13 +116,15 @@ namespace ClassicUO.Game.UI.Gumps
 
             view.MouseDoubleClick += (sender, e) =>
             {
-                NetClient.Socket.Send_MenuResponse(
+                AsyncNetClient.Socket.Send_MenuResponse(
                     LocalSerial,
                     (ushort)ServerSerial,
                     index,
                     graphic,
                     hue
                 );
+                ScriptRecorder.Instance.RecordMenuResponse(LocalSerial, (ushort)ServerSerial, index, graphic, hue);
+                ScriptingInfoGump.AddOrUpdateInfo("Last Menu Response", $"{name} ({index})");
                 Dispose();
                 e.Result = true;
             };
@@ -166,7 +141,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             base.CloseWithRightClick();
 
-            NetClient.Socket.Send_MenuResponse(LocalSerial, (ushort)ServerSerial, 0, 0, 0);
+            AsyncNetClient.Socket.Send_MenuResponse(LocalSerial, (ushort)ServerSerial, 0, 0, 0);
         }
 
         class ItemView : Control
@@ -182,19 +157,19 @@ namespace ClassicUO.Game.UI.Gumps
 
                 _graphic = graphic;
 
-                ref readonly var artInfo = ref Client.Game.Arts.GetArt(_graphic);
+                ref readonly SpriteInfo artInfo = ref Client.Game.UO.Arts.GetArt(_graphic);
 
                 Width = artInfo.UV.Width;
                 Height = artInfo.UV.Height;
                 _hue = hue;
-                _isPartial = TileDataLoader.Instance.StaticData[graphic].IsPartialHue;
+                _isPartial = Client.Game.UO.FileManager.TileData.StaticData[graphic].IsPartialHue;
             }
 
             public override bool Draw(UltimaBatcher2D batcher, int x, int y)
             {
                 if (_graphic != 0)
                 {
-                    ref readonly var artInfo = ref Client.Game.Arts.GetArt(_graphic);
+                    ref readonly SpriteInfo artInfo = ref Client.Game.UO.Arts.GetArt(_graphic);
 
                     Vector3 hueVector = ShaderHueTranslator.GetHueVector(_hue, _isPartial, 1f);
 
@@ -281,11 +256,11 @@ namespace ClassicUO.Game.UI.Gumps
         }
     }
 
-    internal class GrayMenuGump : Gump
+    public class GrayMenuGump : Gump
     {
         private readonly ResizePic _resizePic;
 
-        public GrayMenuGump(uint local, uint serv, string name) : base(local, serv)
+        public GrayMenuGump(World world, uint local, uint serv, string name) : base(world, local, serv)
         {
             CanMove = true;
             AcceptMouseInput = true;
@@ -302,7 +277,7 @@ namespace ClassicUO.Game.UI.Gumps
             Height = l.Height;
         }
 
-        public void SetHeight(int h)
+        public new void SetHeight(int h)
         {
             _resizePic.Height = h;
             Width = _resizePic.Width;
@@ -311,7 +286,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public int AddItem(string name, int y)
         {
-            RadioButton radio = new RadioButton(0, 0x138A, 0x138B, name, 1, 0x0386, false, 330)
+            var radio = new RadioButton(0, 0x138A, 0x138B, name, 1, 0x0386, false, 330)
             {
                 X = 50,
                 Y = y
@@ -327,7 +302,7 @@ namespace ClassicUO.Game.UI.Gumps
             switch (buttonID)
             {
                 case 0: // cancel
-                    NetClient.Socket.Send_GrayMenuResponse(LocalSerial, (ushort)ServerSerial, 0);
+                    AsyncNetClient.Socket.Send_GrayMenuResponse(LocalSerial, (ushort)ServerSerial, 0);
 
                     Dispose();
 
@@ -341,11 +316,13 @@ namespace ClassicUO.Game.UI.Gumps
                     {
                         if (radioButton.IsChecked)
                         {
-                            NetClient.Socket.Send_GrayMenuResponse(
+                            AsyncNetClient.Socket.Send_GrayMenuResponse(
                                 LocalSerial,
                                 (ushort)ServerSerial,
                                 index
                             );
+                            ScriptRecorder.Instance.RecordGrayMenuResponse(LocalSerial, (ushort)ServerSerial, index);
+                            ScriptingInfoGump.AddOrUpdateInfo("Last Menu Response", $"{radioButton.Text} ({index})");
 
                             Dispose();
                             break;

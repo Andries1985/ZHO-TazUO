@@ -1,24 +1,33 @@
-using ClassicUO.Configuration;
-using ClassicUO.Game.Managers;
-using System;
+using ClassicUO.Utility;
+using Microsoft.Xna.Framework;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ClassicUO.Game.UI.Gumps.GridHighLight
 {
     public class GridHighlightSetupEntry
     {
         public string Name { get; set; }
+        public List<string> ItemNames { get; set; } = new();
         public ushort Hue { get; set; }
+        public string HighlightColor { get; set; } = "#FF0000";
         public List<GridHighlightProperty> Properties { get; set; } = new();
         public bool AcceptExtraProperties { get; set; } = true;
-        public bool Overweight { get; set; } = true;
+        public bool Overweight { get; set; }
+        public int MinimumWeight { get; set; } = 0;
+        public int MaximumWeight { get; set; } = 0;
         public int MinimumProperty { get; set; } = 0;
+        public int MaximumProperty { get; set; } = 0;
+        public int MinimumMatchingProperty { get; set; } = 0;
+        public int MaximumMatchingProperty { get; set; } = 0;
         public List<string> ExcludeNegatives { get; set; } = new();
         public List<string> RequiredRarities { get; set; } = new();
         public GridHighlightSlot GridHighlightSlot { get; set; } = new();
+        public bool LootOnMatch { get; set; } = false;
+        public bool IsHighlightProperties { get; set; } = true;
+
+        public Color GetHighlightColor() => HighlightColor.FromHtmlHex();
+
+        public void SetHighlightColor(Color color) => HighlightColor = color.ToHtmlHex();
     }
 
     public class GridHighlightSlot

@@ -2,16 +2,16 @@ using System;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
 using ClassicUO.Utility.Logging;
-using SDL2;
+using SDL3;
 
 namespace ClassicUO.Game.UI.Gumps;
 
-internal class AnimBrowser : Gump
+public class AnimBrowser : Gump
 {
     private DataBox dataBox = new DataBox(0, 0, 500, 700);
     private AnimationDisplay[] animationDisplays;
     private StbTextBox pageInput;
-    public AnimBrowser() : base(0, 0)
+    public AnimBrowser(World world) : base(world, 0, 0)
     {
         CanMove = true;
         AcceptMouseInput = true;
@@ -21,11 +21,11 @@ internal class AnimBrowser : Gump
         Add(new AlphaBlendControl() { Width = Width, Height = Height });
         Add(dataBox);
 
-        NiceButton next = new NiceButton(Width - 100, Height - 20, 100, 20, ButtonAction.Default, ">>");
+        var next = new NiceButton(Width - 100, Height - 20, 100, 20, ButtonAction.Default, ">>");
         next.MouseDown += (s, e) => { Page++; BuildPage(); };
         Add(next);
 
-        NiceButton prev = new NiceButton(0, Height - 20, 100, 20, ButtonAction.Default, "<<");
+        var prev = new NiceButton(0, Height - 20, 100, 20, ButtonAction.Default, "<<");
         prev.MouseDown += (s, e) => { Page--; BuildPage(); };
         Add(prev);
 
@@ -55,7 +55,7 @@ internal class AnimBrowser : Gump
             {
                 try
                 {
-                    var p = uint.Parse(graphicInput.Text.Remove(0, 2), System.Globalization.NumberStyles.HexNumber);
+                    uint p = uint.Parse(graphicInput.Text.Remove(0, 2), System.Globalization.NumberStyles.HexNumber);
                     Page = (int)p;
                     BuildPage();
                 }
@@ -95,7 +95,7 @@ internal class AnimBrowser : Gump
         if (sender is AnimationDisplay rsp)
         {
             SDL.SDL_SetClipboardText(rsp.Graphic.ToString());
-            GameActions.Print($"Copied {rsp.Graphic} to clipboard.");
+            GameActions.Print(World, $"Copied {rsp.Graphic} to clipboard.");
         }
     }
 
@@ -111,10 +111,10 @@ internal class AnimBrowser : Gump
         uint index = (uint)(Page * maxEntries);
         while (count < maxEntries)
         {
-            ref readonly var art = ref Client.Game.Arts.GetArt(index);
+            ref readonly Renderer.SpriteInfo art = ref Client.Game.UO.Arts.GetArt(index);
             //if (art.Texture != null)
             {
-                var c = animationDisplays[count];
+                AnimationDisplay c = animationDisplays[count];
                 c.UpdateGraphic((ushort)index);
                 c.SetTooltip($"Animation: {index}\nDouble click to copy.");
                 count++;

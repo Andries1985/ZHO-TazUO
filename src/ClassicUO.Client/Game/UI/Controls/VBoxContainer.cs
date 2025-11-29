@@ -1,10 +1,12 @@
+using ClassicUO.Game.UI;
+
 namespace ClassicUO.Game.UI.Controls;
 
 public class VBoxContainer : Control
 {
     private Positioner pos;
     private bool repositionRequested;
-    
+
     public VBoxContainer(int width, int leftpad = 1, int toppad = 1)
     {
         CanMove = true;
@@ -20,18 +22,22 @@ public class VBoxContainer : Control
         Add(c, page);
     }
 
-    public override void Add(Control c, int page = 0)
+    public void BlankLine() => pos.BlankLine();
+
+    public override T Add<T>(T c, int page = 0)
     {
         base.Add(c, page);
-        
+
         pos.Position(c);
-        
+
         c.UpdateOffset(0, Offset.Y);
 
         if (repositionRequested)
             Reposition();
         else
             UpdateSize(c); //Reposition is not requested, so we update the size of the container
+
+        return c;
     }
 
     public override void Clear()
@@ -51,7 +57,7 @@ public class VBoxContainer : Control
         repositionRequested = false;
 
         pos.Reset();
-        
+
         foreach (Control child in Children)
         {
             if (!child.IsVisible || child.IsDisposed)
@@ -59,7 +65,7 @@ public class VBoxContainer : Control
 
             pos.Position(child);
         }
-        
+
         UpdateSize();
     }
 
@@ -69,7 +75,7 @@ public class VBoxContainer : Control
         foreach (Control child in Children)
         {
             if(!child.IsVisible || child.IsDisposed) continue;
-            
+
             if (child.Height + child.Y > h)
                 h = child.Height + child.Y;
         }
@@ -80,7 +86,7 @@ public class VBoxContainer : Control
     private void UpdateSize(Control c)
     {
         if(!c.IsVisible || c.IsDisposed) return;
-        
+
         Height = c.Height + c.Y;
     }
 }

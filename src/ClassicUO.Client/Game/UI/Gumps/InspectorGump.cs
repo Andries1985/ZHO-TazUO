@@ -1,38 +1,9 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using ClassicUO.Assets;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
@@ -41,17 +12,17 @@ using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework;
-using SDL2;
+using SDL3;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class InspectorGump : Gump
+    public class InspectorGump : Gump
     {
         private const int WIDTH = 500;
         private const int HEIGHT = 400;
         private readonly GameObject _obj;
 
-        public InspectorGump(GameObject obj) : base(0, 0)
+        public InspectorGump(World world, GameObject obj) : base(world, 0, 0)
         {
             X = 200;
             Y = 100;
@@ -132,7 +103,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             );
 
-            ScrollArea scrollArea = new ScrollArea
+            var scrollArea = new ScrollArea
             (
                 20,
                 35,
@@ -146,7 +117,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(scrollArea);
 
-            DataBox databox = new DataBox(0, 0, 1, 1);
+            var databox = new DataBox(0, 0, 1, 1);
             databox.WantUpdateSize = true;
             scrollArea.Add(databox);
 
@@ -159,7 +130,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 foreach (KeyValuePair<string, string> item in dict.OrderBy(s => s.Key))
                 {
-                    Label label = new Label
+                    var label = new Label
                     (
                         item.Key + ":",
                         true,
@@ -228,7 +199,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 if (dict != null)
                 {
-                    using (LogFile writer = new LogFile(CUOEnviroment.ExecutablePath, "dump_gameobject.txt"))
+                    using (var writer = new LogFile(CUOEnviroment.ExecutablePath, "dump_gameobject.txt"))
                     {
                         writer.Write("###################################################");
                         writer.Write($"CUO version: {CUOEnviroment.Version}");
@@ -248,26 +219,27 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void OnLabelClick(object sender, MouseEventArgs e)
         {
-            Label l = (Label) sender;
+            var l = (Label) sender;
 
             if (e.Button == MouseButtonType.Left && l != null)
             {
                 SDL.SDL_SetClipboardText(l.Text);
-                GameActions.Print($"Copied to clipboard: {l.Text}");
+                GameActions.Print(World, $"Copied to clipboard: {l.Text}");
             }
         }
 
         private Dictionary<string, string> GetGameObjectProperties(GameObject obj)
         {
-            Dictionary<string, string> dict = new Dictionary<string, string>();
+            var dict = new Dictionary<string, string>();
 
-            dict["Graphics"] = $"{obj.Graphic}";
+            dict["Graphics"] = $"0x{obj.Graphic:X4}";
             dict["Hue"] = $"{obj.Hue}";
             dict["Position"] = $"X={obj.X}, Y={obj.Y}, Z={obj.Z}";
             dict["PriorityZ"] = obj.PriorityZ.ToString();
             dict["Distance"] = obj.Distance.ToString();
             dict["AllowedToDraw"] = obj.AllowedToDraw.ToString();
             dict["AlphaHue"] = obj.AlphaHue.ToString();
+            dict["HasLineOfSightFromPlayer"] = obj.HasLineOfSightFrom().ToString();
 
             switch (obj)
             {
@@ -300,19 +272,22 @@ namespace ClassicUO.Game.UI.Gumps
                     dict["HP"] = $"{it.Hits}/{it.HitsMax}";
                     dict["IsCoins"] = it.IsCoin.ToString();
                     dict["Amount"] = it.Amount.ToString();
-                    dict["Container"] = it.Container.ToString();
+                    dict["Container"] = $"0x{it.Container:X8}";
                     dict["Layer"] = it.Layer.ToString();
                     dict["Price"] = it.Price.ToString();
                     dict["Direction"] = it.Direction.ToString();
                     dict["IsMulti"] = it.IsMulti.ToString();
                     dict["MultiGraphic"] = $"0x{it.MultiGraphic:X4}";
+                    dict["IsImpassable"] = it.ItemData.IsImpassable.ToString();
 
                     break;
 
                 case Static st:
-
+                    ref StaticTiles staticData = ref Client.Game.UO.FileManager.TileData.StaticData[st.OriginalGraphic];
                     dict["Type"] = "Static";
                     dict["IsVegetation"] = st.IsVegetation.ToString();
+                    dict["IsWall"] = staticData.IsWall.ToString();
+                    dict["IsImpassable"] = staticData.IsImpassable.ToString();
 
                     break;
 
@@ -321,6 +296,8 @@ namespace ClassicUO.Game.UI.Gumps
                     dict["Type"] = "Multi";
                     dict["State"] = multi.State.ToString();
                     dict["IsMovable"] = multi.IsMovable.ToString();
+                    dict["IsImpassable"] = multi.ItemData.IsImpassable.ToString();
+                    dict["IsWall"] = multi.ItemData.IsWall.ToString();
 
                     break;
 
@@ -335,6 +312,7 @@ namespace ClassicUO.Game.UI.Gumps
                     dict["MinZ"] = land.MinZ.ToString();
                     dict["AvgZ"] = land.AverageZ.ToString();
                     dict["YOffsets"] = land.YOffsets.ToString();
+                    dict["IsImpassable"] = land.TileData.IsImpassable.ToString();
 
                     break;
             }

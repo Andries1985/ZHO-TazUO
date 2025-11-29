@@ -8,14 +8,14 @@ using ClassicUO.Game.UI.Controls;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class UpdateTimerViewer : Gump
+    public class UpdateTimerViewer : Gump
     {
         private const long UPDATE_INTERVAL = 2000;
 
         private ScrollArea scrollArea;
         private DataBox dataBox;
         private long lastUpdate = Time.Ticks;
-        public UpdateTimerViewer() : base(0, 0)
+        public UpdateTimerViewer(World world) : base(world, 0, 0)
         {
             UIManager.UpdateTimerEnabled = true;
 
@@ -40,7 +40,7 @@ namespace ClassicUO.Game.UI.Gumps
             dataBox.Clear();
 
 
-            Dictionary<Type, double> sortedDict = new Dictionary<Type, double>();
+            var sortedDict = new Dictionary<Type, double>();
 
             foreach (KeyValuePair<Type, double> kvp in UIManager.UpdateTimerTotalTime)
             {

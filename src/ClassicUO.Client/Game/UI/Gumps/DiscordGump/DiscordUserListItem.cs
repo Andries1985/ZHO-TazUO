@@ -19,10 +19,12 @@ public class DiscordUserListItem : Control
     private Vector3 shue;
     private long showPopupAt = long.MaxValue;
     private bool showPopupMouseOver;
+    private World world;
     
     public override bool AcceptMouseInput => true;
-    public DiscordUserListItem(DiscordGump gump, UserHandle user, int width = 100, int height = 25)
+    public DiscordUserListItem(World world, DiscordGump gump, UserHandle user, int width = 100, int height = 25)
     {
+        this.world = world;
         Width = width;
         Height = height;
         CanMove = true;
@@ -67,7 +69,7 @@ public class DiscordUserListItem : Control
         {
             if (showPopupMouseOver)
             {
-                UIManager.Add(new DiscordUserPopupGump(user.Id(), Mouse.Position.X + 20, Mouse.Position.Y + 20));
+                UIManager.Add(new DiscordUserPopupGump(world, user.Id(), Mouse.Position.X + 20, Mouse.Position.Y + 20));
             }
 
             showPopupAt = long.MaxValue;
@@ -111,7 +113,8 @@ public class DiscordUserListItem : Control
 
         if(user.GameActivity() != null) //In TUO
         {
-            var tuo = new EmbeddedGumpPic(Width - 75, 2, PNGLoader.Instance.EmbeddedArt["TazUOSM.png"]);
+            PNGLoader.Instance.TryGetEmbeddedTexture("TazUOSM.png", out Microsoft.Xna.Framework.Graphics.Texture2D tuoTexture);
+            var tuo = new EmbeddedGumpPic(Width - 75, 2, tuoTexture);
             Add(tuo);
         }
         

@@ -12,17 +12,18 @@ using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class NearbyItems : Gump
+    public class NearbyItems : Gump
     {
         public const int SIZE = 75;
         public static NearbyItems NearbyItemGump;
 
-        private int playerX = World.Player.X;
-        private int playerY = World.Player.Y;
+        private int playerX, playerY;
 
         private long openedTicks = Time.Ticks;
-        public NearbyItems() : base(0, 0)
+        public NearbyItems(World world) : base(world, 0, 0)
         {
+            playerX = world.Player.X;
+            playerY = world.Player.Y;
             NearbyItemGump?.Dispose();
             NearbyItemGump = this;
             CanCloseWithRightClick = true;
@@ -46,7 +47,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void BuildGump()
         {
-            List<NearbyItemDisplay> items = new List<NearbyItemDisplay>();
+            var items = new List<NearbyItemDisplay>();
 
             foreach (Item i in World.Items.Values)
             {
@@ -60,7 +61,7 @@ namespace ClassicUO.Game.UI.Gumps
                 
                 if(i.IsCorpse) continue;
 
-                items.Add(new NearbyItemDisplay(i));
+                items.Add(new NearbyItemDisplay(World, i));
             }
 
             if (items.Count == 0)
@@ -101,7 +102,7 @@ namespace ClassicUO.Game.UI.Gumps
         }
     }
 
-    internal class NearbyItemDisplay : Control
+    public class NearbyItemDisplay : Control
     {
         private Point originalSize;
         private float scale = (ProfileManager.CurrentProfile.GridContainersScale / 100f);
@@ -112,17 +113,17 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly AlphaBlendControl background;
 
 
-        public NearbyItemDisplay(Item item)
+        public NearbyItemDisplay(World world, Item item)
         {
             Width = NearbyItems.SIZE;
             Height = NearbyItems.SIZE;
             background = new AlphaBlendControl() { Width = Width, Height = Height };
             originalSize = new Point(Width, Height);
             hueVector = ShaderHueTranslator.GetHueVector(item.Hue, item.ItemData.IsPartialHue, 1f);
-            realArtRectBounds = Client.Game.Arts.GetRealArtBounds((uint)item.DisplayedGraphic);
-            itemSpriteInfo = Client.Game.Arts.GetArt((uint)(item.DisplayedGraphic));
+            realArtRectBounds = Client.Game.UO.Arts.GetRealArtBounds((uint)item.DisplayedGraphic);
+            itemSpriteInfo = Client.Game.UO.Arts.GetArt((uint)(item.DisplayedGraphic));
 
-            HitBox loot = new HitBox(0, 0, Width, Height / 2);
+            var loot = new HitBox(0, 0, Width, Height / 2);
             loot.Add(TextBox.GetOne("Loot", TrueTypeLoader.EMBEDDED_FONT, 16, Color.White, TextBox.RTLOptions.DefaultCentered(Width)));
             loot.MouseUp += (s, e) =>
             {
@@ -132,14 +133,14 @@ namespace ClassicUO.Game.UI.Gumps
             };
             Add(loot);
 
-            HitBox use = new HitBox(0, Height / 2, Width, Height / 2);
+            var use = new HitBox(0, Height / 2, Width, Height / 2);
             TextBox tb;
             use.Add(tb = TextBox.GetOne("Use", TrueTypeLoader.EMBEDDED_FONT, 16, Color.White, TextBox.RTLOptions.DefaultCentered(Width)));
             tb.Y = use.Height - tb.MeasuredSize.Y;
             use.MouseUp += (s, e) =>
             {
                 if (e.Button != MouseButtonType.Left) return;
-                GameActions.DoubleClick(item);
+                GameActions.DoubleClick(world, item);
             };
             Add(use);
 

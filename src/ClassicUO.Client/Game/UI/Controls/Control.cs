@@ -1,45 +1,15 @@
-#region license
+// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
-
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using ClassicUO.Game.Managers;
 using ClassicUO.Input;
 using ClassicUO.Renderer;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
-using SDL2;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using SDL3;
 using Keyboard = ClassicUO.Input.Keyboard;
 
 namespace ClassicUO.Game.UI.Controls
@@ -49,10 +19,8 @@ namespace ClassicUO.Game.UI.Controls
         internal static int _StepsDone = 1;
         internal static int _StepChanger = 1;
 
-        private bool _acceptKeyboardInput, _acceptMouseInput;
-        private int _activePage;
+        private bool _acceptKeyboardInput;
         private Rectangle _bounds;
-        private bool _handlesKeyboardFocus;
         private Point _offset;
         private Control _parent;
         private float alpha = 1.0f;
@@ -150,8 +118,8 @@ namespace ClassicUO.Game.UI.Controls
 
         public virtual bool AcceptMouseInput
         {
-            get => IsEnabled && !IsDisposed && _acceptMouseInput && IsVisible;
-            set => _acceptMouseInput = value;
+            get => IsEnabled && !IsDisposed && field && IsVisible;
+            set;
         }
 
         public ref int X => ref _bounds.X;
@@ -225,7 +193,7 @@ namespace ClassicUO.Game.UI.Controls
                     return false;
                 }
 
-                if (_handlesKeyboardFocus)
+                if (field)
                 {
                     return true;
                 }
@@ -245,15 +213,15 @@ namespace ClassicUO.Game.UI.Controls
 
                 return false;
             }
-            set => _handlesKeyboardFocus = value;
+            set;
         }
 
         public int ActivePage
         {
-            get => _activePage;
+            get;
             set
             {
-                _activePage = value;
+                field = value;
 
                 OnPageChanged();
             }
@@ -346,13 +314,13 @@ namespace ClassicUO.Game.UI.Controls
         /// </summary>
         /// <returns>int</returns>
         public int GetX() => X;
-        
+
         /// <summary>
         /// Used in python API
         /// </summary>
         /// <returns>int</returns>
         public int GetY() => Y;
-        
+
         public void UpdateOffset(int x, int y)
         {
             if (_offset.X != x || _offset.Y != y)
@@ -377,10 +345,9 @@ namespace ClassicUO.Game.UI.Controls
             for (int i = 0; i < Children.Count; i++)
             {
                 if (Children.Count <= i)
-                {
                     break;
-                }
-                Control c = Children.ElementAt(i);
+
+                Control c = Children[i];
 
                 if (c != null && (c.Page == 0 || c.Page == ActivePage))
                 {
@@ -401,134 +368,81 @@ namespace ClassicUO.Game.UI.Controls
         /// </summary>
         public virtual void Update()
         {
-            if (IsDisposed)
-            {
+            if (IsDisposed || Children.Count == 0)
                 return;
+
+            int w = 0, h = 0, count = Children.Count;
+
+            for (int i = 0; i < count; i++)
+            {
+                if (i >= Children.Count)
+                    break;
+
+                Control c = Children[i];
+
+                if (c == null || c.IsDisposed)
+                    continue;
+
+                c.Update();
+
+                if (WantUpdateSize)
+                {
+                    if ((c.Page == 0 || c.Page == ActivePage) && c.IsVisible)
+                    {
+                        if (w < c.Bounds.Right)
+                        {
+                            w = c.Bounds.Right;
+                        }
+
+                        if (h < c.Bounds.Bottom)
+                        {
+                            h = c.Bounds.Bottom;
+                        }
+                    }
+                }
             }
 
-
-            if (Children.Count != 0)
+            if (WantUpdateSize && IsVisible)
             {
-                List<Control> removalList = new List<Control>(); ;
-                int w = 0, h = 0;
-
-                for (int i = 0; i < Children.Count; i++)
+                if (w != Width)
                 {
-                    if (i < 0 || i >= Children.Count)
-                    {
-                        continue;
-                    }
-
-                    Control c = Children.ElementAt(i);
-
-                    if (c == null)
-                    {
-                        continue;
-                    }
-
-                    if (c.IsDisposed)
-                    {
-                        removalList.Add(c);
-                        continue;
-                    }
-
-                    c.Update();
-
-                    if (WantUpdateSize)
-                    {
-                        if ((c.Page == 0 || c.Page == ActivePage) && c.IsVisible)
-                        {
-                            if (w < c.Bounds.Right)
-                            {
-                                w = c.Bounds.Right;
-                            }
-
-                            if (h < c.Bounds.Bottom)
-                            {
-                                h = c.Bounds.Bottom;
-                            }
-                        }
-                    }
+                    Width = w;
                 }
 
-                if (removalList.Count > 0)
+                if (h != Height)
                 {
-                    foreach (Control c in removalList)
-                    {
-                        if (Children.Contains(c))
-                        {
-                            OnChildRemoved();
-                            Children.Remove(c);
-                        }
-                    }
+                    Height = h;
                 }
 
-                if (WantUpdateSize && IsVisible)
-                {
-                    if (w != Width)
-                    {
-                        Width = w;
-                    }
-
-                    if (h != Height)
-                    {
-                        Height = h;
-                    }
-
-                    WantUpdateSize = false;
-                }
+                WantUpdateSize = false;
             }
         }
 
         /// <summary>
-        /// Intended for updates that don't need to occur as frequently as Update() does.
-        /// SlowUpdate is called twice per second.
+        /// Intended for any ui changes that only need to occur just before drawing to the screen.
         /// </summary>
-        public virtual void SlowUpdate()
+        public virtual void PreDraw()
         {
-            if (IsDisposed)
+            if (IsDisposed) return;
+
+            if (Children.Count == 0) return;
+
+            int count = Children.Count;
+
+            for (int i = 0; i < count; i++)
             {
-                return;
+                if (i >= Children.Count)
+                    continue;
+
+                Control c = Children[i];
+
+                if (c == null || c.IsDisposed)
+                    continue;
+
+                c.PreDraw();
             }
 
-            if (Children.Count != 0)
-            {
-                List<Control> removalList = new List<Control>(); ;
-
-                for (int i = 0; i < Children.Count; i++)
-                {
-                    if (i < 0 || i >= Children.Count)
-                    {
-                        continue;
-                    }
-
-                    Control c = Children.ElementAt(i);
-
-                    if (c == null)
-                    {
-                        continue;
-                    }
-
-                    if (c.IsDisposed)
-                    {
-                        removalList.Add(c);
-                        continue;
-                    }
-
-                    c.SlowUpdate();
-
-                }
-
-                if (removalList.Count > 0)
-                {
-                    foreach (Control c in removalList)
-                    {
-                        OnChildRemoved();
-                        Children.Remove(c);
-                    }
-                }
-
-            }
+            CleanUpDisposedChildren();
         }
 
         /// <summary>
@@ -614,6 +528,25 @@ namespace ClassicUO.Game.UI.Controls
             }
         }
 
+        internal void CleanUpDisposedChildren()
+        {
+            bool childRemoved = false;
+            for (int i = Children.Count - 1; i >= 0; i--)
+                if (i < Children.Count)
+                {
+                    Control c = Children[i];
+
+                    if(c?.IsDisposed == true)
+                    {
+                        Children.Remove(c);
+                        childRemoved = true;
+                    }
+                }
+
+            if(childRemoved)
+                OnChildRemoved();
+        }
+
         private void DrawDebug(UltimaBatcher2D batcher, int x, int y)
         {
             if (IsVisible && CUOEnviroment.Debug)
@@ -632,10 +565,7 @@ namespace ClassicUO.Game.UI.Controls
             }
         }
 
-        public void BringOnTop()
-        {
-            UIManager.MakeTopMostGump(this);
-        }
+        public void BringOnTop() => UIManager.MakeTopMostGump(this);
 
         public void SetTooltip(string text, int maxWidth = 0)
         {
@@ -654,10 +584,7 @@ namespace ClassicUO.Game.UI.Controls
             Tooltip = entity;
         }
 
-        public void ClearTooltip()
-        {
-            Tooltip = null;
-        }
+        public void ClearTooltip() => Tooltip = null;
 
         public void SetKeyboardFocus()
         {
@@ -677,7 +604,7 @@ namespace ClassicUO.Game.UI.Controls
 
         internal event EventHandler<KeyboardEventArgs> KeyDown, KeyUp;
 
-        internal event EventHandler<SDL.SDL_GameControllerButton> ControllerButtonUp, ControllerButtonDown;
+        internal event EventHandler<SDL.SDL_GamepadButton> ControllerButtonUp, ControllerButtonDown;
 
 
         public void HitTest(int x, int y, ref Control res)
@@ -707,6 +634,8 @@ namespace ClassicUO.Game.UI.Controls
                     {
                         Control c = Children[i];
 
+                        if(c == null) continue;
+
                         if (c.Page == 0 || c.Page == ActivePage)
                         {
                             c.HitTest(x, y, ref res);
@@ -716,10 +645,7 @@ namespace ClassicUO.Game.UI.Controls
             }
         }
 
-        public void HitTest(Point position, ref Control res)
-        {
-            HitTest(position.X, position.Y, ref res);
-        }
+        public void HitTest(Point position, ref Control res) => HitTest(position.X, position.Y, ref res);
 
         public virtual void OnHitTestSuccess(int x, int y, ref Control res)
         {
@@ -744,7 +670,7 @@ namespace ClassicUO.Game.UI.Controls
                 return null;
             }
 
-            foreach (Control c in Children)
+            foreach (Control c in Children.ToArray())
             {
                 Control a = c.GetFirstControlAcceptKeyboardInput();
 
@@ -757,11 +683,13 @@ namespace ClassicUO.Game.UI.Controls
             return null;
         }
 
-        public virtual void Add(Control c, int page = 0)
+        public virtual T Add<T>(T c, int page = 0) where T : Control
         {
             c.Page = page;
             c.Parent = this;
             OnChildAdded();
+
+            return c;
         }
 
         public void Insert(int index, Control c, int page = 0)
@@ -797,15 +725,9 @@ namespace ClassicUO.Game.UI.Controls
             }
         }
 
-        public T[] GetControls<T>() where T : Control
-        {
-            return Children.OfType<T>().Where(s => !s.IsDisposed).ToArray();
-        }
+        public T[] GetControls<T>() where T : Control => Children.OfType<T>().Where(s => !s.IsDisposed).ToArray();
 
-        public IEnumerable<T> FindControls<T>() where T : Control
-        {
-            return Children.OfType<T>().Where(s => !s.IsDisposed);
-        }
+        public IEnumerable<T> FindControls<T>() where T : Control => Children.OfType<T>().Where(s => !s.IsDisposed);
 
 
         public void InvokeMouseDown(Point position, MouseButtonType button)
@@ -862,35 +784,32 @@ namespace ClassicUO.Game.UI.Controls
             int y = position.Y - Y - ParentY;
             bool result = OnMouseDoubleClick(x, y, button);
 
-            MouseDoubleClickEventArgs arg = new MouseDoubleClickEventArgs(x, y, button);
+            var arg = new MouseDoubleClickEventArgs(x, y, button);
             MouseDoubleClick.Raise(arg, this);
             result |= arg.Result;
 
             return result;
         }
 
-        public void InvokeTextInput(string c)
-        {
-            OnTextInput(c);
-        }
+        public void InvokeTextInput(string c) => OnTextInput(c);
 
         public void InvokeKeyDown(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
         {
             OnKeyDown(key, mod);
-            KeyboardEventArgs arg = new KeyboardEventArgs(key, mod, KeyboardEventType.Down);
+            var arg = new KeyboardEventArgs(key, mod, KeyboardEventType.Down);
             KeyDown?.Raise(arg);
         }
 
         public void InvokeKeyUp(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
         {
             OnKeyUp(key, mod);
-            KeyboardEventArgs arg = new KeyboardEventArgs(key, mod, KeyboardEventType.Up);
+            var arg = new KeyboardEventArgs(key, mod, KeyboardEventType.Up);
             KeyUp?.Raise(arg);
         }
 
-        public void InvokeControllerButtonUp(SDL.SDL_GameControllerButton button) { OnControllerButtonUp(button); ControllerButtonUp?.Raise(button); }
+        public void InvokeControllerButtonUp(SDL.SDL_GamepadButton button) { OnControllerButtonUp(button); ControllerButtonUp?.Raise(button); }
 
-        public void InvokeControllerButtonDown(SDL.SDL_GameControllerButton button) { OnControllerButtonDown(button); ControllerButtonDown?.Raise(button); }
+        public void InvokeControllerButtonDown(SDL.SDL_GamepadButton button) { OnControllerButtonDown(button); ControllerButtonDown?.Raise(button); }
 
         public void InvokeMouseWheel(MouseEventType delta)
         {
@@ -921,10 +840,7 @@ namespace ClassicUO.Game.UI.Controls
             OnMove(x, y);
         }
 
-        protected virtual void OnMouseDown(int x, int y, MouseButtonType button)
-        {
-            Parent?.OnMouseDown(X + x, Y + y, button);
-        }
+        protected virtual void OnMouseDown(int x, int y, MouseButtonType button) => Parent?.OnMouseDown(X + x, Y + y, button);
 
         protected virtual void OnMouseUp(int x, int y, MouseButtonType button)
         {
@@ -936,15 +852,9 @@ namespace ClassicUO.Game.UI.Controls
             }
         }
 
-        protected virtual void OnMouseWheel(MouseEventType delta)
-        {
-            Parent?.OnMouseWheel(delta);
-        }
+        protected virtual void OnMouseWheel(MouseEventType delta) => Parent?.OnMouseWheel(delta);
 
-        protected virtual void OnMouseOver(int x, int y)
-        {
-            Parent?.OnMouseOver(X + x, Y + y);
-        }
+        protected virtual void OnMouseOver(int x, int y) => Parent?.OnMouseOver(X + x, Y + y);
 
         protected virtual void OnMouseEnter(int x, int y)
         {
@@ -954,10 +864,7 @@ namespace ClassicUO.Game.UI.Controls
         {
         }
 
-        protected virtual bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
-        {
-            return Parent?.OnMouseDoubleClick(X + x, Y + y, button) ?? false;
-        }
+        protected virtual bool OnMouseDoubleClick(int x, int y, MouseButtonType button) => Parent?.OnMouseDoubleClick(X + x, Y + y, button) ?? false;
 
         protected virtual void OnDragBegin(int x, int y)
         {
@@ -971,24 +878,15 @@ namespace ClassicUO.Game.UI.Controls
         {
         }
 
-        protected virtual void OnKeyDown(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
-        {
-            Parent?.OnKeyDown(key, mod);
-        }
+        protected virtual void OnKeyDown(SDL.SDL_Keycode key, SDL.SDL_Keymod mod) => Parent?.OnKeyDown(key, mod);
 
-        protected virtual void OnKeyUp(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
-        {
-            Parent?.OnKeyUp(key, mod);
-        }
+        protected virtual void OnKeyUp(SDL.SDL_Keycode key, SDL.SDL_Keymod mod) => Parent?.OnKeyUp(key, mod);
 
-        protected virtual void OnControllerButtonUp(SDL.SDL_GameControllerButton button) { }
+        protected virtual void OnControllerButtonUp(SDL.SDL_GamepadButton button) { }
 
-        protected virtual void OnControllerButtonDown(SDL.SDL_GameControllerButton button) { }
+        protected virtual void OnControllerButtonDown(SDL.SDL_GamepadButton button) { }
 
-        public virtual bool Contains(int x, int y)
-        {
-            return !IsDisposed;
-        }
+        public virtual bool Contains(int x, int y) => !IsDisposed;
 
         protected virtual void OnMove(int x, int y)
         {
@@ -1076,20 +974,11 @@ namespace ClassicUO.Game.UI.Controls
             }
         }
 
-        public virtual void OnButtonClick(int buttonID)
-        {
-            Parent?.OnButtonClick(buttonID);
-        }
+        public virtual void OnButtonClick(int buttonID) => Parent?.OnButtonClick(buttonID);
 
-        public virtual void OnKeyboardReturn(int textID, string text)
-        {
-            Parent?.OnKeyboardReturn(textID, text);
-        }
+        public virtual void OnKeyboardReturn(int textID, string text) => Parent?.OnKeyboardReturn(textID, text);
 
-        public virtual void ChangePage(int pageIndex)
-        {
-            Parent?.ChangePage(pageIndex);
-        }
+        public virtual void ChangePage(int pageIndex) => Parent?.ChangePage(pageIndex);
 
         public virtual void Dispose()
         {
@@ -1102,7 +991,7 @@ namespace ClassicUO.Game.UI.Controls
             {
                 foreach (Control c in Children)
                 {
-                    c.Dispose();
+                    c?.Dispose();
                 }
 
                 Children.Clear();

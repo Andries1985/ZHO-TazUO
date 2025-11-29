@@ -1,13 +1,10 @@
 using ClassicUO.Configuration;
 using ClassicUO.Game.UI.Controls;
-using ClassicUO.Renderer.Lights;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using static ClassicUO.Game.UI.Gumps.OptionsGump;
 
 namespace ClassicUO.Game.UI.Gumps.GridHighLight
 {
@@ -17,7 +14,7 @@ namespace ClassicUO.Game.UI.Gumps.GridHighLight
         private int lastYitem = 0;
         private int lastXitem = 0;
 
-        public GridHighlightConfig(int x, int y) : base(0, 0)
+        public GridHighlightConfig(World world, int x, int y) : base(world, 0, 0)
         {
             Width = (175 + 2) * 6;
             Height = HEIGHT;
@@ -41,7 +38,7 @@ namespace ClassicUO.Game.UI.Gumps.GridHighLight
                     ("Negatives", GridHighlightRules.NegativeProperties),
                     ("Rarity", GridHighlightRules.RarityProperties)
                 };
-            foreach (var (labelText, propSet) in categories)
+            foreach ((string labelText, HashSet<string> propSet) in categories)
             {
                 Add(label = new Label(labelText, true, 0xffff) { X = lastXitem, Y = lastYitem });
                 ScrollArea propertiesScrollArea;
@@ -50,19 +47,20 @@ namespace ClassicUO.Game.UI.Gumps.GridHighLight
                 propertiesScrollArea.Add(propertiesPropInput = new InputField(0x0BB8, 0xFF, 0xFFFF, true, 175 - 13, (HEIGHT - lastYitem - 20) * 10) { Y = 0 });
                 string s = string.Join("\n", propSet);
                 propertiesPropInput.SetText(s);
-                CancellationTokenSource cts = new CancellationTokenSource();
+                var cts = new CancellationTokenSource();
                 propertiesPropInput.TextChanged += async (s, e) =>
                 {
-                    cts.Cancel();
+                    CancellationTokenSource oldToken = cts;
+                    oldToken?.Cancel();
                     cts = new CancellationTokenSource();
-                    var token = cts.Token;
+                    CancellationToken token = cts.Token;
 
                     try
                     {
                         await Task.Delay(500, token);
                         if (!token.IsCancellationRequested)
                         {
-                            var text = propertiesPropInput.Text;
+                            string text = propertiesPropInput.Text;
                             var parsed = text
                                 .Split(new[] { ',', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                                 .Select(p => p.Trim())
@@ -76,8 +74,9 @@ namespace ClassicUO.Game.UI.Gumps.GridHighLight
                         }
                     }
                     catch (TaskCanceledException) { }
+                    oldToken?.Dispose();
                 };
-                
+
                 lastXitem += 175 + 2;
             }
         }

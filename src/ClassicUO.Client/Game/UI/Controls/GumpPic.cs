@@ -1,34 +1,4 @@
-#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using System.Collections.Generic;
 using ClassicUO.Input;
@@ -58,7 +28,7 @@ namespace ClassicUO.Game.UI.Controls
             {
                 _graphic = value;
 
-                ref readonly var gumpInfo = ref Client.Game.Gumps.GetGump(_graphic);
+                ref readonly SpriteInfo gumpInfo = ref Client.Game.UO.Gumps.GetGump(_graphic);
 
                 if (gumpInfo.Texture == null)
                 {
@@ -76,14 +46,14 @@ namespace ClassicUO.Game.UI.Controls
 
         public override bool Contains(int x, int y)
         {
-            ref readonly var gumpInfo = ref Client.Game.Gumps.GetGump(_graphic);
+            ref readonly SpriteInfo gumpInfo = ref Client.Game.UO.Gumps.GetGump(_graphic);
 
             if (gumpInfo.Texture == null)
             {
                 return false;
             }
 
-            if (Client.Game.Gumps.PixelCheck(Graphic, x - Offset.X, y - Offset.Y, InternalScale))
+            if (Client.Game.UO.Gumps.PixelCheck(Graphic, x - Offset.X, y - Offset.Y, InternalScale))
             {
                 return true;
             }
@@ -103,7 +73,7 @@ namespace ClassicUO.Game.UI.Controls
         }
     }
 
-    internal class EmbeddedGumpPic : GumpPicBase
+    public class EmbeddedGumpPic : GumpPicBase
     {
         private Texture2D _customTexture;
 
@@ -177,24 +147,8 @@ namespace ClassicUO.Game.UI.Controls
         { }
         
         public bool ContainsByBounds { get; set; }
-        public bool IsVirtue { get; set; }
 
-        protected override bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
-        {
-            if (IsVirtue && button == MouseButtonType.Left)
-            {
-                NetClient.Socket.Send_VirtueGumpResponse(World.Player, Graphic);
-
-                return true;
-            }
-
-            return base.OnMouseDoubleClick(x, y, button);
-        }
-
-        public override bool Contains(int x, int y)
-        {
-            return ContainsByBounds || base.Contains(x, y);
-        }
+        public override bool Contains(int x, int y) => ContainsByBounds || base.Contains(x, y);
 
         private static ushort TransformHue(ushort hue)
         {
@@ -217,7 +171,7 @@ namespace ClassicUO.Game.UI.Controls
 
             Vector3 hueVector = ShaderHueTranslator.GetHueVector(Hue, IsPartialHue, Alpha, true);
 
-            ref readonly var gumpInfo = ref Client.Game.Gumps.GetGump(Graphic);
+            ref readonly SpriteInfo gumpInfo = ref Client.Game.UO.Gumps.GetGump(Graphic);
 
             if (gumpInfo.Texture != null)
             {
@@ -233,7 +187,29 @@ namespace ClassicUO.Game.UI.Controls
         }
     }
 
-    internal class GumpPicInPic : GumpPicBase
+    public class VirtueGumpPic : GumpPic
+    {
+        private readonly World _world;
+
+        public VirtueGumpPic(World world, List<string> parts) : base(parts)
+        {
+            _world = world;
+        }
+
+        protected override bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
+        {
+            if (button == MouseButtonType.Left)
+            {
+                AsyncNetClient.Socket.Send_VirtueGumpResponse(_world.Player, Graphic);
+
+                return true;
+            }
+
+            return base.OnMouseDoubleClick(x, y, button);
+        }
+    }
+
+    public class GumpPicInPic : GumpPicBase
     {
         private Rectangle _picInPicBounds;
 
@@ -280,10 +256,7 @@ namespace ClassicUO.Game.UI.Controls
             )
         { }
 
-        public override bool Contains(int x, int y)
-        {
-            return true;
-        }
+        public override bool Contains(int x, int y) => true;
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
@@ -294,7 +267,7 @@ namespace ClassicUO.Game.UI.Controls
 
             Vector3 hueVector = ShaderHueTranslator.GetHueVector(Hue, false, Alpha, true);
 
-            ref readonly var gumpInfo = ref Client.Game.Gumps.GetGump(Graphic);
+            ref readonly SpriteInfo gumpInfo = ref Client.Game.UO.Gumps.GetGump(Graphic);
 
             var sourceBounds = new Rectangle(gumpInfo.UV.X + _picInPicBounds.X, gumpInfo.UV.Y + _picInPicBounds.Y, _picInPicBounds.Width, _picInPicBounds.Height);
 

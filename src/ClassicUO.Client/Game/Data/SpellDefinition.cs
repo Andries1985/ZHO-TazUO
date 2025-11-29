@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
@@ -37,7 +7,9 @@ using ClassicUO.Utility;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using ClassicUO.Utility.Logging;
 
 namespace ClassicUO.Game.Data
 {
@@ -132,10 +104,7 @@ namespace ClassicUO.Game.Data
             AddToWatchedSpell();
         }
 
-        public bool Equals(SpellDefinition other)
-        {
-            return ID.Equals(other.ID);
-        }
+        public bool Equals(SpellDefinition other) => ID.Equals(other.ID);
 
         public readonly int GumpIconID;
         public readonly int GumpIconSmallID;
@@ -149,31 +118,36 @@ namespace ClassicUO.Game.Data
         public readonly TargetType TargetType;
         public readonly int TithingCost;
 
-        public static void LoadCustomSpells()
+        public static void LoadCustomSpells(World world)
         {
             string path = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "spelldef.json");
             if (File.Exists(path))
             {
-                LoadSpellsFromFile(path);
+                LoadSpellsFromFile(world, path);
             }
 
             path = Path.Combine(Settings.GlobalSettings.UltimaOnlineDirectory, "spelldef.json");
             if (File.Exists(path))
             {
-                LoadSpellsFromFile(path);
+                LoadSpellsFromFile(world, path);
             }
         }
 
-        private static void LoadSpellsFromFile(string path)
+        private static void LoadSpellsFromFile(World world, string path)
         {
             try
             {
-                Console.WriteLine($"Loading custom spells from {path}");
-                if (Utility.JsonHelper.LoadJsonFile(path, out List<SpellJson> spells))
+                Log.Debug($"Loading custom spells from {path}");
+                
+                if (!File.Exists(path))
+                    return;
+
+                List<SpellJson> spells = JsonSerializer.Deserialize(path, SpellJsonContext.Default.ListSpellJson);
+                if(spells != null)
                 {
                     foreach (SpellJson spell in spells)
                     {
-                        SpellDefinition spellDef = new SpellDefinition(spell.SpellName, spell.SpellIndex, spell.GumpIcon, spell.SmallGumpIcon, spell.PowerWords, spell.ManaCost, spell.MinSkill, spell.TithingCost, spell.TargetType, spell.AllReagents);
+                        var spellDef = new SpellDefinition(spell.SpellName, spell.SpellIndex, spell.GumpIcon, spell.SmallGumpIcon, spell.PowerWords, spell.ManaCost, spell.MinSkill, spell.TithingCost, spell.TargetType, spell.AllReagents);
 
                         switch (spell.School)
                         {
@@ -202,7 +176,7 @@ namespace ClassicUO.Game.Data
                                 SpellsSpellweaving.SetSpell(spell.SpellID, spellDef);
                                 break;
                             default:
-                                GameActions.Print($"Failed to load a spell, matching school not found for: [{spell.School}]. Spell was {spell.SpellName}({spell.SpellID})");
+                                GameActions.Print(world, $"Failed to load a spell, matching school not found for: [{spell.School}]. Spell was {spell.SpellName}({spell.SpellID})");
                                 continue;
                         }
                     }
@@ -228,7 +202,7 @@ namespace ClassicUO.Game.Data
 
         public static bool TryGetSpellFromName(string spellName, out SpellDefinition spell, bool partialMatch = true)
         {
-            foreach (var entry in SpellsMagery.GetAllSpells)
+            foreach (KeyValuePair<int, SpellDefinition> entry in SpellsMagery.GetAllSpells)
             {
                 if (partialMatch)
                 {
@@ -245,7 +219,7 @@ namespace ClassicUO.Game.Data
                 }
             }
 
-            foreach (var entry in SpellsNecromancy.GetAllSpells)
+            foreach (KeyValuePair<int, SpellDefinition> entry in SpellsNecromancy.GetAllSpells)
             {
                 if (partialMatch)
                 {
@@ -262,7 +236,7 @@ namespace ClassicUO.Game.Data
                 }
             }
 
-            foreach (var entry in SpellsChivalry.GetAllSpells)
+            foreach (KeyValuePair<int, SpellDefinition> entry in SpellsChivalry.GetAllSpells)
             {
                 if (partialMatch)
                 {
@@ -279,7 +253,7 @@ namespace ClassicUO.Game.Data
                 }
             }
 
-            foreach (var entry in SpellsBushido.GetAllSpells)
+            foreach (KeyValuePair<int, SpellDefinition> entry in SpellsBushido.GetAllSpells)
             {
                 if (partialMatch)
                 {
@@ -296,7 +270,7 @@ namespace ClassicUO.Game.Data
                 }
             }
 
-            foreach (var entry in SpellsNinjitsu.GetAllSpells)
+            foreach (KeyValuePair<int, SpellDefinition> entry in SpellsNinjitsu.GetAllSpells)
             {
                 if (partialMatch)
                 {
@@ -313,7 +287,7 @@ namespace ClassicUO.Game.Data
                 }
             }
 
-            foreach (var entry in SpellsSpellweaving.GetAllSpells)
+            foreach (KeyValuePair<int, SpellDefinition> entry in SpellsSpellweaving.GetAllSpells)
             {
                 if (partialMatch)
                 {
@@ -330,7 +304,7 @@ namespace ClassicUO.Game.Data
                 }
             }
 
-            foreach (var entry in SpellsMysticism.GetAllSpells)
+            foreach (KeyValuePair<int, SpellDefinition> entry in SpellsMysticism.GetAllSpells)
             {
                 if (partialMatch)
                 {
@@ -347,7 +321,7 @@ namespace ClassicUO.Game.Data
                 }
             }
 
-            foreach (var entry in SpellsMastery.GetAllSpells)
+            foreach (KeyValuePair<int, SpellDefinition> entry in SpellsMastery.GetAllSpells)
             {
                 if (partialMatch)
                 {
@@ -370,7 +344,7 @@ namespace ClassicUO.Game.Data
 
         public string CreateReagentListString(string separator)
         {
-            ValueStringBuilder sb = new ValueStringBuilder();
+            var sb = new ValueStringBuilder();
             {
                 for (int i = 0; i < Regs.Length; i++)
                 {
@@ -510,10 +484,7 @@ namespace ClassicUO.Game.Data
             return SpellsMastery.GetSpell(fullidx % 100);
         }
 
-        public static SpellDefinition[] GetAllSpells()
-        {
-            return
-            [
+        public static SpellDefinition[] GetAllSpells() => [
                 .. SpellsMagery.GetAllSpells.Values,
                 .. SpellsNecromancy.GetAllSpells.Values,
                 .. SpellsChivalry.GetAllSpells.Values,
@@ -523,11 +494,10 @@ namespace ClassicUO.Game.Data
                 .. SpellsMysticism.GetAllSpells.Values,
                 .. SpellsMastery.GetAllSpells.Values,
             ];
-        }
 
-        public static void SaveAllSpellsToJson()
+        public static void SaveAllSpellsToJson(World world)
         {
-            List<SpellJson> list = new List<SpellJson>();
+            var list = new List<SpellJson>();
 
             foreach (SpellDefinition spell in GetAllSpells())
             {
@@ -536,7 +506,7 @@ namespace ClassicUO.Game.Data
                     continue;
                 }
 
-                SpellJson spellJson = new SpellJson()
+                var spellJson = new SpellJson()
                 {
                     SpellName = spell.Name,
                     PowerWords = spell.PowerWords,
@@ -601,15 +571,10 @@ namespace ClassicUO.Game.Data
 
                 list.Add(spellJson);
             }
+            
+            File.WriteAllText(Path.Combine(CUOEnviroment.ExecutablePath, "Data", "spelldef.json"),JsonSerializer.Serialize(list, SpellJsonContext.Default.ListSpellJson));
 
-            if (!JsonHelper.SaveJsonFile(list, Path.Combine(CUOEnviroment.ExecutablePath, "Data", "spelldef.json")))
-            {
-                GameActions.Print("Failed to save all spells as a json file!", 32);
-            }
-            else
-            {
-                GameActions.Print($"Saved all spells as a json file at {Path.Combine(CUOEnviroment.ExecutablePath, "Data", "spelldef.json")}");
-            }
+            GameActions.Print(world, $"Saved all spells as a json file at {Path.Combine(CUOEnviroment.ExecutablePath, "Data", "spelldef.json")}");
         }
 
         public static void FullIndexSetModifySpell
@@ -721,6 +686,11 @@ namespace ClassicUO.Game.Data
         }
     }
 
+    [JsonSerializable(typeof(List<SpellJson>))]
+    public partial class SpellJsonContext : JsonSerializerContext
+    {
+    }
+    
     public class SpellJson
     {
         public string School { get; set; } = "Magery";

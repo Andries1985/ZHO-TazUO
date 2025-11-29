@@ -1,37 +1,8 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Managers;
@@ -41,9 +12,12 @@ using ClassicUO.Input;
 using ClassicUO.Network;
 using ClassicUO.Renderer;
 using ClassicUO.Resources;
-using ClassicUO.Utility.Collections;
+using ClassicUO.Utility.Logging;
 using ClassicUO.Utility.Platforms;
-using SDL2;
+using SDL3;
+using Control = ClassicUO.Game.UI.Controls.Control;
+using Label = ClassicUO.Game.UI.Controls.Label;
+using TextBox = ClassicUO.Game.UI.Controls.TextBox;
 
 namespace ClassicUO.Game.UI.Gumps
 {
@@ -60,7 +34,9 @@ namespace ClassicUO.Game.UI.Gumps
         ClientCommand,
         UOAMChat,
         Prompt,
-        UOChat
+        UOChat,
+        ServUOCommand,
+        PolCommand
     }
 
     public class SystemChatControl : Control
@@ -76,12 +52,15 @@ namespace ClassicUO.Game.UI.Gumps
         private bool _isActive;
         private ChatMode _mode = ChatMode.Default;
 
+        private readonly WorldViewportGump _gump;
         private readonly LinkedList<ChatLineTime> _textEntries;
         private readonly AlphaBlendControl _trans;
+        private int lastAutoCompleteIndex = 0;
+        private string command = string.Empty;
 
-
-        public SystemChatControl(int x, int y, int w, int h)
+        public SystemChatControl(WorldViewportGump gump, int x, int y, int w, int h)
         {
+            _gump = gump;
             X = x;
             Y = y;
             Width = w;
@@ -94,18 +73,18 @@ namespace ClassicUO.Game.UI.Gumps
             TextBoxControl = new StbTextBox
             (
                 ProfileManager.CurrentProfile.ChatFont,
-                MAX_MESSAGE_LENGHT,
+                -1,
                 Width,
                 true,
                 FontStyle.BlackBorder | FontStyle.Fixed,
-                33
+                ProfileManager.CurrentProfile.SpeechHue
             )
             {
                 X = CHAT_X_OFFSET,
                 Y = Height - CHAT_HEIGHT,
                 Width = Width - CHAT_X_OFFSET,
                 Height = CHAT_HEIGHT,
-                LoseFocusOnEscapeKey = false
+                LoseFocusOnEscapeKey = false,
             };
 
             float gradientTransparency = ProfileManager.CurrentProfile != null && ProfileManager.CurrentProfile.HideChatGradient ? 0.0f : 0.5f;
@@ -136,6 +115,8 @@ namespace ClassicUO.Game.UI.Gumps
             );
 
             WantUpdateSize = false;
+
+            _gump.World.MessageManager.MessageReceived += ChatOnMessageReceived;
 
             EventSink.MessageReceived += ChatOnMessageReceived;
             Mode = ChatMode.Default;
@@ -177,7 +158,6 @@ namespace ClassicUO.Game.UI.Gumps
                         case ChatMode.Default:
                             DisposeChatModePrefix();
                             TextBoxControl.Hue = ProfileManager.CurrentProfile.SpeechHue;
-                            TextBoxControl.ClearText();
 
                             break;
 
@@ -228,6 +208,18 @@ namespace ClassicUO.Game.UI.Gumps
                             AppendChatModePrefix(ResGumps.Chat, ProfileManager.CurrentProfile.ChatMessageHue, TextBoxControl.Text);
 
                             break;
+
+                        case ChatMode.ServUOCommand:
+                            DisposeChatModePrefix();
+                            AppendChatModePrefix($"[{command}", 32, null);
+                            TextBoxControl.Hue = ProfileManager.CurrentProfile.SpeechHue;
+                            break;
+
+                        case ChatMode.PolCommand:
+                            DisposeChatModePrefix();
+                            AppendChatModePrefix($".{command}", 32, null);
+                            TextBoxControl.Hue = ProfileManager.CurrentProfile.SpeechHue;
+                            break;
                     }
                 }
             }
@@ -237,16 +229,17 @@ namespace ClassicUO.Game.UI.Gumps
 
         public void SetFocus()
         {
-            TextBoxControl.IsEditable = true;
-            TextBoxControl.SetKeyboardFocus();
+            UIManager.KeyboardFocusControl = null;
             TextBoxControl.IsEditable = _isActive;
+
+            if(_isActive)
+                TextBoxControl.SetKeyboardFocus();
+
             _trans.IsVisible = _isActive;
+            _trans.Alpha = ProfileManager.CurrentProfile != null && ProfileManager.CurrentProfile.HideChatGradient ? 0.0f : 0.5f;
         }
 
-        public void ToggleChatVisibility()
-        {
-            IsActive = !IsActive;
-        }
+        public void ToggleChatVisibility() => IsActive = !IsActive;
 
         private void ChatOnMessageReceived(object sender, MessageEventArgs e)
         {
@@ -311,6 +304,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void Dispose()
         {
+                        _gump.World.MessageManager.MessageReceived -= ChatOnMessageReceived;
+
             EventSink.MessageReceived -= ChatOnMessageReceived;
             base.Dispose();
         }
@@ -356,9 +351,9 @@ namespace ClassicUO.Game.UI.Gumps
                 lineToRemove.Value.Destroy();
                 _textEntries.Remove(lineToRemove);
             }
-            
-            
-            var last = _textEntries.Last?.Value;
+
+
+            ChatLineTime last = _textEntries.Last?.Value;
 
             if (last != null && last.Duplicate(text))
             {
@@ -402,12 +397,11 @@ namespace ClassicUO.Game.UI.Gumps
                 first = next;
             }
 
-
-
             if (Mode == ChatMode.Default && IsActive)
             {
                 if (TextBoxControl.Text.Length > 0)
                 {
+                    string text = TextBoxControl.Text;
                     switch (TextBoxControl.Text[0])
                     {
                         case '/':
@@ -421,9 +415,9 @@ namespace ClassicUO.Game.UI.Gumps
 
                             if (pos < TextBoxControl.Text.Length && int.TryParse(TextBoxControl.Text.Substring(1, pos), out int index) && index > 0 && index < 11)
                             {
-                                if (World.Party.Members[index - 1] != null && World.Party.Members[index - 1].Serial != 0)
+                                if (_gump.World.Party.Members[index - 1] != null && _gump.World.Party.Members[index - 1].Serial != 0)
                                 {
-                                    AppendChatModePrefix(string.Format(ResGumps.Tell0, World.Party.Members[index - 1].Name), ProfileManager.CurrentProfile.PartyMessageHue, string.Empty);
+                                    AppendChatModePrefix(string.Format(ResGumps.Tell0, _gump.World.Party.Members[index - 1].Name), ProfileManager.CurrentProfile.PartyMessageHue, string.Empty);
                                 }
                                 else
                                 {
@@ -431,7 +425,7 @@ namespace ClassicUO.Game.UI.Gumps
                                 }
 
                                 Mode = ChatMode.Party;
-                                TextBoxControl.SetText($"{index} ");
+                                TextBoxControl.SetText($" ");
                             }
                             else
                             {
@@ -455,7 +449,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                             break;
 
-                        case ',' when ChatManager.ChatIsEnabled == ChatStatus.Enabled:
+                        case ',' when _gump.World.ChatManager.ChatIsEnabled == ChatStatus.Enabled:
                             Mode = ChatMode.UOChat;
 
                             break;
@@ -475,6 +469,22 @@ namespace ClassicUO.Game.UI.Gumps
                             Mode = ChatMode.Yell;
 
                             break;
+
+                        case '[' when text.Length > 1 && text.Contains(" "):
+                            int bracketSpaceIndex = text.IndexOf(' ');
+                            command = text.Substring(1, bracketSpaceIndex - 1);
+                            Mode = ChatMode.ServUOCommand;
+                            // Remove the command from the textbox, keep parameters (trim leading space)
+                            TextBoxControl.SetText(text.Substring(bracketSpaceIndex).TrimStart());
+                            break;
+
+                        case '.' when text.Length > 1 && text.Contains(" "):
+                            int dotSpaceIndex = text.IndexOf(' ');
+                            command = text.Substring(1, dotSpaceIndex - 1);
+                            Mode = ChatMode.PolCommand;
+                            // Remove the command from the textbox, keep parameters (trim leading space)
+                            TextBoxControl.SetText(text.Substring(dotSpaceIndex).TrimStart());
+                            break;
                     }
                 }
             }
@@ -482,13 +492,6 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 Mode = ChatMode.UOAMChat;
             }
-
-            if (ProfileManager.CurrentProfile.SpeechHue != TextBoxControl.Hue)
-            {
-                TextBoxControl.Hue = ProfileManager.CurrentProfile.SpeechHue;
-            }
-
-            _trans.Alpha = ProfileManager.CurrentProfile != null && ProfileManager.CurrentProfile.HideChatGradient ? 0.0f : 0.5f;
 
             base.Update();
         }
@@ -527,7 +530,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             switch (key)
             {
-                case SDL.SDL_Keycode.SDLK_q when Keyboard.Ctrl && _messageHistoryIndex > -1 && !ProfileManager.CurrentProfile.DisableCtrlQWBtn:
+                case SDL.SDL_Keycode.SDLK_Q when Keyboard.Ctrl && !ProfileManager.CurrentProfile.DisableCtrlQWBtn:
 
                     GameScene scene = Client.Game.GetScene<GameScene>();
 
@@ -536,7 +539,7 @@ namespace ClassicUO.Game.UI.Gumps
                         return;
                     }
 
-                    if (scene.Macros.FindMacro(key, false, true, false) != null)
+                    if (_gump.World.Macros.FindMacro(key, false, true, false) != null)
                     {
                         return;
                     }
@@ -546,10 +549,14 @@ namespace ClassicUO.Game.UI.Gumps
                         return;
                     }
 
-                    if (_messageHistoryIndex > 0)
+                    // Can't go back if we're already at the oldest message
+                    if (_messageHistoryIndex <= 0)
                     {
-                        _messageHistoryIndex--;
+                        _messageHistoryIndex = 0;
+                        return;
                     }
+
+                    _messageHistoryIndex--;
 
                     Mode = _messageHistory[_messageHistoryIndex].Item1;
 
@@ -557,7 +564,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                     break;
 
-                case SDL.SDL_Keycode.SDLK_w when Keyboard.Ctrl && !ProfileManager.CurrentProfile.DisableCtrlQWBtn:
+                case SDL.SDL_Keycode.SDLK_W when Keyboard.Ctrl && !ProfileManager.CurrentProfile.DisableCtrlQWBtn:
 
                     scene = Client.Game.GetScene<GameScene>();
 
@@ -566,13 +573,20 @@ namespace ClassicUO.Game.UI.Gumps
                         return;
                     }
 
-                    if (scene.Macros.FindMacro(key, false, true, false) != null)
+                    if (_gump.World.Macros.FindMacro(key, false, true, false) != null)
                     {
                         return;
                     }
 
                     if (!IsActive)
                     {
+                        return;
+                    }
+
+                    // Can't go forward if we're already past the newest message
+                    if (_messageHistoryIndex >= _messageHistory.Count)
+                    {
+                        _messageHistoryIndex = _messageHistory.Count;
                         return;
                     }
 
@@ -586,6 +600,8 @@ namespace ClassicUO.Game.UI.Gumps
                     }
                     else
                     {
+                        // At the newest message, go to empty state
+                        _messageHistoryIndex = _messageHistory.Count;
                         TextBoxControl.ClearText();
                     }
 
@@ -596,19 +612,62 @@ namespace ClassicUO.Game.UI.Gumps
 
                     break;
 
-                case SDL.SDL_Keycode.SDLK_ESCAPE when MessageManager.PromptData.Prompt != ConsolePrompt.None:
+                case SDL.SDL_Keycode.SDLK_ESCAPE when _gump.World.MessageManager.PromptData.Prompt != ConsolePrompt.None:
 
-                    if (MessageManager.PromptData.Prompt == ConsolePrompt.ASCII)
+                    if (_gump.World.MessageManager.PromptData.Prompt == ConsolePrompt.ASCII)
                     {
-                        NetClient.Socket.Send_ASCIIPromptResponse(string.Empty, true);
+                        AsyncNetClient.Socket.Send_ASCIIPromptResponse(_gump.World, string.Empty, true);
                     }
-                    else if (MessageManager.PromptData.Prompt == ConsolePrompt.Unicode)
+                    else if (_gump.World.MessageManager.PromptData.Prompt == ConsolePrompt.Unicode)
                     {
-                        NetClient.Socket.Send_UnicodePromptResponse(string.Empty, Settings.GlobalSettings.Language, true);
+                        AsyncNetClient.Socket.Send_UnicodePromptResponse(_gump.World, string.Empty, Settings.GlobalSettings.Language, true);
                     }
 
-                    MessageManager.PromptData = default;
+                    _gump.World.MessageManager.PromptData = default;
 
+                    break;
+
+                case SDL.SDL_Keycode.SDLK_TAB when _mode == ChatMode.Default:
+                    List<string> autoComplete = TextHistoryManager.GetAutocompleteSuggestions(TextBoxControl.Text, 5);
+                    if (autoComplete != null && autoComplete.Count > 0)
+                    {
+                        autoComplete.Insert(0, TextBoxControl.Text);
+                        void selected(string s)
+                        {
+                            if (TextBoxControl == null)
+                                return;
+
+                            // Pre-process commands to avoid double-prefix issue
+                            if (s.Length > 1 && s.Contains(" "))
+                            {
+                                if (s[0] == '[')
+                                {
+                                    int spaceIndex = s.IndexOf(' ');
+                                    command = s.Substring(1, spaceIndex - 1);
+                                    Mode = ChatMode.ServUOCommand;
+                                    TextBoxControl.SetText(s.Substring(spaceIndex).TrimStart());
+                                    return;
+                                }
+                                else if (s[0] == '.')
+                                {
+                                    int spaceIndex = s.IndexOf(' ');
+                                    command = s.Substring(1, spaceIndex - 1);
+                                    Mode = ChatMode.PolCommand;
+                                    TextBoxControl.SetText(s.Substring(spaceIndex).TrimStart());
+                                    return;
+                                }
+                            }
+
+                            TextBoxControl.SetText(s);
+                        }
+
+                        var listGump = new SelectableItemListGump(autoComplete, selected, selected);
+                        Microsoft.Xna.Framework.Graphics.Viewport viewport = Client.Game.GetScene<GameScene>().Camera.GetViewport();
+                        listGump.X = viewport.X + 10;
+                        listGump.Y = viewport.Height - listGump.Height + viewport.Y - 20;
+                        UIManager.Add(listGump);
+                        listGump.SetKeyboardFocus();
+                    }
                     break;
             }
         }
@@ -622,30 +681,61 @@ namespace ClassicUO.Game.UI.Gumps
                 Mode = ChatMode.Default;
             }
 
-            if (string.IsNullOrEmpty(text))
-            {
-                return;
-            }
-
+            _messageHistoryIndex = _messageHistory.Count;
 
             ChatMode sentMode = Mode;
-            TextBoxControl.ClearText();
-            _messageHistory.Add(new Tuple<ChatMode, string>(Mode, text));
-            _messageHistoryIndex = _messageHistory.Count;
             Mode = ChatMode.Default;
+            TextBoxControl.ClearText();
 
-            if (MessageManager.PromptData.Prompt != ConsolePrompt.None)
+            bool sendAgain = false;
+
+            string fullText = text;
+            ChatMode modMode = sentMode;
+            if (sentMode == ChatMode.ServUOCommand || sentMode == ChatMode.PolCommand)
             {
-                if (MessageManager.PromptData.Prompt == ConsolePrompt.ASCII)
+                string prefix = sentMode == ChatMode.ServUOCommand ? "[" : ".";
+                fullText = $"{prefix}{command} {text}";
+                modMode = ChatMode.Default;
+            }
+            if(_messageHistory.Count < 1 || (_messageHistory[_messageHistory.Count - 1].Item1 != sentMode || _messageHistory[_messageHistory.Count - 1].Item2 != fullText))
+            {
+                //Add to history if last message was not the same
+                _messageHistory.Add(new Tuple<ChatMode, string>(modMode, fullText));
+                _messageHistoryIndex = _messageHistory.Count;
+            }
+
+            if (text.Length > MAX_MESSAGE_LENGHT)
+            {
+                int cutoffIndex = MAX_MESSAGE_LENGHT;
+
+                // Find the last space within the limit
+                int lastSpaceIndex = text.LastIndexOf(' ', MAX_MESSAGE_LENGHT - 1);
+
+                // If we found a space within the limit, use it as the cutoff
+                if (lastSpaceIndex > 0)
                 {
-                    NetClient.Socket.Send_ASCIIPromptResponse(text, text.Length < 1);
-                }
-                else if (MessageManager.PromptData.Prompt == ConsolePrompt.Unicode)
-                {
-                    NetClient.Socket.Send_UnicodePromptResponse(text, Settings.GlobalSettings.Language, text.Length < 1);
+                    cutoffIndex = lastSpaceIndex;
                 }
 
-                MessageManager.PromptData = default;
+                GameActions.Print(World.Instance, "Message too long, sending the first " + cutoffIndex + " characters.");
+                Mode = sentMode;
+                TextBoxControl.SetText(text.Substring(cutoffIndex).TrimStart());
+                text = text.Substring(0, cutoffIndex);
+                sendAgain = true;
+            }
+
+            if (_gump.World.MessageManager.PromptData.Prompt != ConsolePrompt.None)
+            {
+                if (_gump.World.MessageManager.PromptData.Prompt == ConsolePrompt.ASCII)
+                {
+                    AsyncNetClient.Socket.Send_ASCIIPromptResponse(_gump.World, text, text.Length < 1);
+                }
+                else if (_gump.World.MessageManager.PromptData.Prompt == ConsolePrompt.Unicode)
+                {
+                    AsyncNetClient.Socket.Send_UnicodePromptResponse(_gump.World, text, Settings.GlobalSettings.Language, text.Length < 1);
+                }
+
+                _gump.World.MessageManager.PromptData = default;
             }
             else
             {
@@ -653,6 +743,8 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     case ChatMode.Default:
                         GameActions.Say(text, ProfileManager.CurrentProfile.SpeechHue);
+
+                        TextHistoryManager.AddToHistoryIfCommand(text);
 
                         break;
 
@@ -677,13 +769,13 @@ namespace ClassicUO.Game.UI.Gumps
                         switch (text.ToLower())
                         {
                             case "add":
-                                if (World.Party.Leader == 0 || World.Party.Leader == World.Player)
+                                if (_gump.World.Party.Leader == 0 || _gump.World.Party.Leader == _gump.World.Player)
                                 {
                                     GameActions.RequestPartyInviteByTarget();
                                 }
                                 else
                                 {
-                                    MessageManager.HandleMessage
+                                    _gump.World.MessageManager.HandleMessage
                                     (
                                         null,
                                         ResGumps.YouAreNotPartyLeader,
@@ -699,13 +791,13 @@ namespace ClassicUO.Game.UI.Gumps
 
                             case "loot":
 
-                                if (World.Party.Leader != 0)
+                                if (_gump.World.Party.Leader != 0)
                                 {
-                                    World.Party.CanLoot = !World.Party.CanLoot;
+                                    _gump.World.Party.CanLoot = !_gump.World.Party.CanLoot;
                                 }
                                 else
                                 {
-                                    MessageManager.HandleMessage
+                                    _gump.World.MessageManager.HandleMessage
                                     (
                                         null,
                                         ResGumps.YouAreNotInAParty,
@@ -722,9 +814,9 @@ namespace ClassicUO.Game.UI.Gumps
 
                             case "quit":
 
-                                if (World.Party.Leader == 0)
+                                if (_gump.World.Party.Leader == 0)
                                 {
-                                    MessageManager.HandleMessage
+                                    _gump.World.MessageManager.HandleMessage
                                     (
                                         null,
                                         ResGumps.YouAreNotInAParty,
@@ -737,7 +829,7 @@ namespace ClassicUO.Game.UI.Gumps
                                 }
                                 else
                                 {
-                                    GameActions.RequestPartyQuit();
+                                    GameActions.RequestPartyQuit(_gump.World.Player);
 
                                     //for (int i = 0; i < World.Party.Members.Length; i++)
                                     //{
@@ -750,15 +842,15 @@ namespace ClassicUO.Game.UI.Gumps
 
                             case "accept":
 
-                                if (World.Party.Leader == 0 && World.Party.Inviter != 0)
+                                if (_gump.World.Party.Leader == 0 && (_gump.World.Party.Inviter != 0))
                                 {
-                                    GameActions.RequestPartyAccept(World.Party.Inviter);
-                                    World.Party.Leader = World.Party.Inviter;
-                                    World.Party.Inviter = 0;
+                                    GameActions.RequestPartyAccept(_gump.World.Party.Inviter);
+                                    _gump.World.Party.Leader = _gump.World.Party.Inviter;
+                                    _gump.World.Party.Inviter = 0;
                                 }
                                 else
                                 {
-                                    MessageManager.HandleMessage
+                                    _gump.World.MessageManager.HandleMessage
                                     (
                                         null,
                                         ResGumps.NoOneHasInvitedYouToBeInAParty,
@@ -774,15 +866,15 @@ namespace ClassicUO.Game.UI.Gumps
 
                             case "decline":
 
-                                if (World.Party.Leader == 0 && World.Party.Inviter != 0)
+                                if (_gump.World.Party.Leader == 0 && _gump.World.Party.Inviter != 0)
                                 {
-                                    NetClient.Socket.Send_PartyDecline(World.Party.Inviter);
-                                    World.Party.Leader = 0;
-                                    World.Party.Inviter = 0;
+                                    AsyncNetClient.Socket.Send_PartyDecline(_gump.World.Party.Inviter);
+                                    _gump.World.Party.Leader = 0;
+                                    _gump.World.Party.Inviter = 0;
                                 }
                                 else
                                 {
-                                    MessageManager.HandleMessage
+                                    _gump.World.MessageManager.HandleMessage
                                     (
                                         null,
                                         ResGumps.NoOneHasInvitedYouToBeInAParty,
@@ -799,13 +891,13 @@ namespace ClassicUO.Game.UI.Gumps
 
                             case "rem":
 
-                                if (World.Party.Leader != 0 && World.Party.Leader == World.Player)
+                                if (_gump.World.Party.Leader != 0 && _gump.World.Party.Leader == _gump.World.Player)
                                 {
                                     GameActions.RequestPartyRemoveMemberByTarget();
                                 }
                                 else
                                 {
-                                    MessageManager.HandleMessage
+                                    _gump.World.MessageManager.HandleMessage
                                     (
                                         null,
                                         ResGumps.YouAreNotPartyLeader,
@@ -822,7 +914,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                             default:
 
-                                if (World.Party.Leader != 0)
+                                if (_gump.World.Party.Leader != 0)
                                 {
                                     uint serial = 0;
 
@@ -835,9 +927,9 @@ namespace ClassicUO.Game.UI.Gumps
 
                                     if (pos < text.Length)
                                     {
-                                        if (int.TryParse(text.Substring(0, pos), out int index) && index > 0 && index < 11 && World.Party.Members[index - 1] != null && World.Party.Members[index - 1].Serial != 0)
+                                        if (int.TryParse(text.Substring(0, pos), out int index) && index > 0 && index < 11 && _gump.World.Party.Members[index - 1] != null && _gump.World.Party.Members[index - 1].Serial != 0)
                                         {
-                                            serial = World.Party.Members[index - 1].Serial;
+                                            serial = _gump.World.Party.Members[index - 1].Serial;
                                         }
                                     }
 
@@ -847,6 +939,7 @@ namespace ClassicUO.Game.UI.Gumps
                                 {
                                     GameActions.Print
                                     (
+                                        _gump.World,
                                         string.Format(ResGumps.NoteToSelf0, text),
                                         0,
                                         MessageType.System,
@@ -875,24 +968,44 @@ namespace ClassicUO.Game.UI.Gumps
 
                         if (tt.Length != 0)
                         {
-                            CommandManager.Execute(tt[0], tt);
+                            _gump.World.CommandManager.Execute(tt[0], tt);
                         }
 
                         break;
 
                     case ChatMode.UOAMChat:
-                        UoAssist.SignalMessage(text);
-
                         break;
 
                     case ChatMode.UOChat:
-                        NetClient.Socket.Send_ChatMessageCommand(text);
+                        AsyncNetClient.Socket.Send_ChatMessageCommand(text);
+
+                        break;
+
+                    case ChatMode.ServUOCommand:
+                        if (!text.StartsWith(" "))
+                            text = " " + text;
+                        GameActions.Say($"[{command}{text}", ProfileManager.CurrentProfile.SpeechHue);
+                        TextHistoryManager.AddToHistoryIfCommand($"[{command} {text}");
+
+                        break;
+
+                    case ChatMode.PolCommand:
+                        if (!text.StartsWith(" "))
+                            text = " " + text;
+                        GameActions.Say($".{command}{text}", ProfileManager.CurrentProfile.SpeechHue);
+                        TextHistoryManager.AddToHistoryIfCommand($".{command} {text}");
 
                         break;
                 }
             }
 
-            DisposeChatModePrefix();
+            if(!sendAgain)
+            {
+                DisposeChatModePrefix();
+                command = string.Empty;
+                // Reset history index after sending message
+                _messageHistoryIndex = _messageHistory.Count;
+            }
         }
 
         private class ChatLineTime
@@ -932,15 +1045,9 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
 
-            public bool Draw(UltimaBatcher2D batcher, int x, int y)
-            {
-                return !IsDisposed && textBox.Draw(batcher, x, y);
-            }
+            public bool Draw(UltimaBatcher2D batcher, int x, int y) => !IsDisposed && textBox.Draw(batcher, x, y);
 
-            public override string ToString()
-            {
-                return Text;
-            }
+            public override string ToString() => Text;
 
             public void Destroy()
             {

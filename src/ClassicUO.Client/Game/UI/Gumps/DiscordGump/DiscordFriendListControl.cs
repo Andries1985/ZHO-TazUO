@@ -40,19 +40,19 @@ public class DiscordFriendListControl : Control
     {
         _friendList.Clear();
 
-        var friends = DiscordManager.Instance.GetFriends();
+        System.Collections.Generic.IEnumerable<Discord.Sdk.RelationshipHandle> friends = DiscordManager.Instance.GetFriends();
 
         if (friends == null)
             return;
 
-        foreach (var f in friends.OrderBy(u => u.User()?.IsOnline() != true))
+        foreach (Discord.Sdk.RelationshipHandle f in friends.OrderBy(u => u.User()?.IsOnline() != true))
         {
-            var user = f.User();
+            Discord.Sdk.UserHandle user = f.User();
 
             if (user == null)
                 continue;
 
-            _friendList.Add(new DiscordUserListItem(_gump, user, Width - 20)); //-20 for scroll bar
+            _friendList.Add(new DiscordUserListItem(_gump.World, _gump, user, Width - 20)); //-20 for scroll bar
         }
 
         _friendList.ReArrangeChildren();
@@ -60,7 +60,7 @@ public class DiscordFriendListControl : Control
 
     public void UpdateSelectedFriend()
     {
-        foreach (var child in _friendList.Children)
+        foreach (Control child in _friendList.Children)
         {
             if (child is DiscordUserListItem item)
                 item.SetSelected();

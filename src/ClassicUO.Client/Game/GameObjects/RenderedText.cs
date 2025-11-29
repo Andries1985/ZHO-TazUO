@@ -1,34 +1,4 @@
-#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.IO;
 using ClassicUO.Assets;
@@ -39,6 +9,7 @@ using Microsoft.Xna.Framework.Graphics;
 using StbTextEditSharp;
 using System;
 using System.Collections.Generic;
+using ClassicUO.Utility.Logging;
 
 namespace ClassicUO.Game
 {
@@ -84,7 +55,7 @@ namespace ClassicUO.Game
             {
                 if (value == 0xFF)
                 {
-                    value = (byte)(Client.Version >= ClientVersion.CV_305D ? 1 : 0);
+                    value = (byte)(Client.Game.UO.Version >= ClientVersion.CV_305D ? 1 : 0);
                 }
 
                 _font = value;
@@ -129,7 +100,7 @@ namespace ClassicUO.Game
 
                         if (IsHTML)
                         {
-                            FontsLoader.Instance.SetUseHTML(false);
+                            Client.Game.UO.FileManager.Fonts.SetUseHTML(false);
                         }
 
                         Links.Clear();
@@ -143,7 +114,7 @@ namespace ClassicUO.Game
 
                         if (IsUnicode)
                         {
-                            _info = FontsLoader.Instance.GetInfoUnicode(
+                            _info = Client.Game.UO.FileManager.Fonts.GetInfoUnicode(
                                 Font,
                                 Text,
                                 Text.Length,
@@ -156,7 +127,7 @@ namespace ClassicUO.Game
                         }
                         else
                         {
-                            _info = FontsLoader.Instance.GetInfoASCII(
+                            _info = Client.Game.UO.FileManager.Fonts.GetInfoASCII(
                                 Font,
                                 Text,
                                 Text.Length,
@@ -199,6 +170,10 @@ namespace ClassicUO.Game
         )
         {
             RenderedText r = _pool.GetOne();
+
+            if (r == null)
+                r = new RenderedText();
+
             r.Hue = hue;
             r.Font = font;
             r.IsUnicode = isunicode;
@@ -232,7 +207,7 @@ namespace ClassicUO.Game
 
             if (IsUnicode)
             {
-                (p.X, p.Y) = FontsLoader.Instance.GetCaretPosUnicode(
+                (p.X, p.Y) = Client.Game.UO.FileManager.Fonts.GetCaretPosUnicode(
                     Font,
                     Text,
                     caret_index,
@@ -243,7 +218,7 @@ namespace ClassicUO.Game
             }
             else
             {
-                (p.X, p.Y) = FontsLoader.Instance.GetCaretPosASCII(
+                (p.X, p.Y) = Client.Game.UO.FileManager.Fonts.GetCaretPosASCII(
                     Font,
                     Text,
                     caret_index,
@@ -256,10 +231,7 @@ namespace ClassicUO.Game
             return p;
         }
 
-        public MultilinesFontInfo GetInfo()
-        {
-            return _info;
-        }
+        public MultilinesFontInfo GetInfo() => _info;
 
         public bool PixelCheck(int x, int y)
         {
@@ -289,7 +261,7 @@ namespace ClassicUO.Game
 
         public TextEditRow GetLayoutRow(int startIndex)
         {
-            TextEditRow r = new TextEditRow();
+            var r = new TextEditRow();
 
             if (string.IsNullOrEmpty(Text))
             {
@@ -373,10 +345,10 @@ namespace ClassicUO.Game
 
                         if (IsUnicode)
                         {
-                            return FontsLoader.Instance.GetCharWidthUnicode(Font, c);
+                            return Client.Game.UO.FileManager.Fonts.GetCharWidthUnicode(Font, c);
                         }
 
-                        return FontsLoader.Instance.GetCharWidthASCII(Font, c);
+                        return Client.Game.UO.FileManager.Fonts.GetCharWidthASCII(Font, c);
                     }
                 }
 
@@ -391,10 +363,10 @@ namespace ClassicUO.Game
         {
             if (IsUnicode)
             {
-                return FontsLoader.Instance.GetCharWidthUnicode(Font, c);
+                return Client.Game.UO.FileManager.Fonts.GetCharWidthUnicode(Font, c);
             }
 
-            return FontsLoader.Instance.GetCharWidthASCII(Font, c);
+            return Client.Game.UO.FileManager.Fonts.GetCharWidthASCII(Font, c);
         }
 
         public bool Draw(
@@ -459,7 +431,7 @@ namespace ClassicUO.Game
                 --hue;
             }
 
-            Vector3 hueVector = new Vector3(hue, 0, 1f);
+            var hueVector = new Vector3(hue, 0, 1f);
 
             if (hue != 0)
             {
@@ -522,7 +494,7 @@ namespace ClassicUO.Game
                 --hue;
             }
 
-            Vector3 hueVector = new Vector3(hue, 0, 1f);
+            var hueVector = new Vector3(hue, 0, 1f);
 
             if (hue != -1)
             {
@@ -576,7 +548,7 @@ namespace ClassicUO.Game
                 --hue;
             }
 
-            Vector3 hueVector = new Vector3(hue, 0, alpha);
+            var hueVector = new Vector3(hue, 0, alpha);
 
             if (hue != 0)
             {
@@ -613,15 +585,15 @@ namespace ClassicUO.Game
 
             if (IsHTML)
             {
-                FontsLoader.Instance.SetUseHTML(true, HTMLColor, HasBackgroundColor);
+                Client.Game.UO.FileManager.Fonts.SetUseHTML(true, HTMLColor, HasBackgroundColor);
             }
 
-            FontsLoader.Instance.RecalculateWidthByInfo = RecalculateWidthByInfo;
+            Client.Game.UO.FileManager.Fonts.RecalculateWidthByInfo = RecalculateWidthByInfo;
 
             FontsLoader.FontInfo fi;
             if (IsUnicode)
             {
-                fi = FontsLoader.Instance.GenerateUnicode(
+                fi = Client.Game.UO.FileManager.Fonts.GenerateUnicode(
                     Font,
                     Text,
                     Hue,
@@ -635,7 +607,7 @@ namespace ClassicUO.Game
             }
             else
             {
-                fi = FontsLoader.Instance.GenerateASCII(
+                fi = Client.Game.UO.FileManager.Fonts.GenerateASCII(
                     Font,
                     Text,
                     Hue,
@@ -649,7 +621,7 @@ namespace ClassicUO.Game
 
             if (SaveHitMap)
             {
-                var b = (ulong)(
+                ulong b = (ulong)(
                     Text.GetHashCode()
                     ^ Hue
                     ^ ((int)Align)
@@ -660,17 +632,23 @@ namespace ClassicUO.Game
                 _picker.Set(b, fi.Width, fi.Height, fi.Data);
             }
 
-            var isValid = fi.Data != null && fi.Data.Length > 0;
+            bool isValid = fi.Data != null && fi.Data.Length > 0;
 
             if (isValid && (Texture == null || Texture.IsDisposed))
             {
-                Texture = new Texture2D(
-                    Client.Game.GraphicsDevice,
-                    fi.Width,
-                    fi.Height,
-                    false,
-                    SurfaceFormat.Color
-                );
+                if (fi.Width < 0 || fi.Height < 0)
+                {
+                    Log.Error("Invalid texture size: " + fi.Width + "x" + fi.Height);
+                } else
+                {
+                    Texture = new Texture2D(
+                        Client.Game.GraphicsDevice,
+                        fi.Width,
+                        fi.Height,
+                        false,
+                        SurfaceFormat.Color
+                    );
+                }
             }
 
             Links.Clear();
@@ -702,10 +680,10 @@ namespace ClassicUO.Game
 
             if (IsHTML)
             {
-                FontsLoader.Instance.SetUseHTML(false);
+                Client.Game.UO.FileManager.Fonts.SetUseHTML(false);
             }
 
-            FontsLoader.Instance.RecalculateWidthByInfo = false;
+            Client.Game.UO.FileManager.Fonts.RecalculateWidthByInfo = false;
         }
 
         public void Destroy()

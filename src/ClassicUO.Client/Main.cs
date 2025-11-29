@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Configuration;
 using ClassicUO.Game;
@@ -38,10 +8,11 @@ using ClassicUO.Network;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
-using SDL2;
+using SDL3;
 using System;
 using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -49,27 +20,39 @@ namespace ClassicUO
 {
     internal static class Bootstrap
     {
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool SetDllDirectory(string lpPathName);
+        [UnmanagedCallersOnly(EntryPoint = "Initialize", CallConvs = new Type[] { typeof(CallConvCdecl) })]
+        static unsafe void Initialize(IntPtr* argv, int argc, HostBindings* hostSetup)
+        {
+            string[] args = new string[argc];
+            for (int i = 0; i < argc; i++)
+            {
+                args[i] = Marshal.PtrToStringAnsi(argv[i]);
+            }
+
+            var host = new UnmanagedAssistantHost(hostSetup);
+            Boot(host, args);
+        }
+
 
         [STAThread]
-        public static void Main(string[] args)
+        public static void Main(string[] args) => Boot(null, args);
+
+
+        public static void Boot(UnmanagedAssistantHost pluginHost, string[] args)
         {
+            CopyRequiredLibs();
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
             Language.Load();
-#if !NETFRAMEWORK
-            DllMap.Initialise();
-#endif
-
             Log.Start(LogTypes.All);
+
+            //DllMap.Init();
 
             CUOEnviroment.GameThread = Thread.CurrentThread;
             CUOEnviroment.GameThread.Name = "CUO_MAIN_THREAD";
-            
+
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
-                System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                var sb = new System.Text.StringBuilder();
                 sb.AppendLine("######################## [START LOG] ########################");
 
 #if DEV_BUILD
@@ -77,9 +60,10 @@ namespace ClassicUO
 #else
                 sb.AppendLine($"TazUO [STANDARD_BUILD] - {CUOEnviroment.Version} - {DateTime.Now}");
 #endif
+                sb.AppendLine($"Framework: {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}");
 
                 sb.AppendLine
-                    ($"OS: {Environment.OSVersion.Platform} {(Environment.Is64BitOperatingSystem ? "x64" : "x86")}");
+                    ($"OS: {System.Runtime.InteropServices.RuntimeInformation.OSDescription} ({System.Runtime.InteropServices.RuntimeInformation.OSArchitecture})");
 
                 sb.AppendLine($"Thread: {Thread.CurrentThread.Name}");
                 sb.AppendLine();
@@ -95,16 +79,16 @@ namespace ClassicUO
                 sb.AppendLine("######################## [END LOG] ########################");
                 sb.AppendLine();
                 sb.AppendLine();
-                
+
                 HtmlCrashLogGen.Generate(sb.ToString());
-                
+
                 Log.Panic(e.ExceptionObject.ToString());
                 string path = Path.Combine(CUOEnviroment.ExecutablePath, "Logs");
 
                 if (!Directory.Exists(path))
                     Directory.CreateDirectory(path);
 
-                using (LogFile crashfile = new LogFile(path, "crash.txt"))
+                using (var crashfile = new LogFile(path, "crash.txt"))
                 {
                     crashfile.WriteAsync(sb.ToString()).RunSynchronously();
                 }
@@ -117,10 +101,11 @@ namespace ClassicUO
                 Environment.SetEnvironmentVariable("FNA_GRAPHICS_ENABLE_HIGHDPI", "1");
             }
 
+            // NOTE: this is a workaroud to fix d3d11 on windows 11 + scale windows
+            Environment.SetEnvironmentVariable("FNA3D_D3D11_FORCE_BITBLT", "1");
             Environment.SetEnvironmentVariable("FNA3D_BACKBUFFER_SCALE_NEAREST", "1");
             Environment.SetEnvironmentVariable("FNA3D_OPENGL_FORCE_COMPATIBILITY_PROFILE", "1");
             Environment.SetEnvironmentVariable(SDL.SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
-
             Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH") + ";" + Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Plugins"));
 
             string globalSettingsPath = Settings.GetSettingsFilepath();
@@ -129,13 +114,12 @@ namespace ClassicUO
             {
                 // settings specified in path does not exists, make new one
                 {
-                    // TODO: 
+                    // TODO:
                     Settings.GlobalSettings.Save();
                 }
             }
 
-            Settings.GlobalSettings = ConfigurationResolver.Load<Settings>(globalSettingsPath, SettingsJsonContext.Default);
-            CUOEnviroment.IsOutlands = Settings.GlobalSettings.ShardType == 2;
+            Settings.GlobalSettings = ConfigurationResolver.Load(globalSettingsPath, SettingsJsonContext.RealDefault.Settings);
 
             ReadSettingsFromArgs(args);
 
@@ -144,13 +128,6 @@ namespace ClassicUO
             {
                 Settings.GlobalSettings = new Settings();
                 Settings.GlobalSettings.Save();
-            }
-
-            if (!CUOEnviroment.IsUnix)
-            {
-                string libsPath = Path.Combine(CUOEnviroment.ExecutablePath, Environment.Is64BitProcess ? "x64" : "x86");
-
-                SetDllDirectory(libsPath);
             }
 
             if (string.IsNullOrWhiteSpace(Settings.GlobalSettings.Language))
@@ -189,30 +166,7 @@ namespace ClassicUO
 
             if (!Directory.Exists(Settings.GlobalSettings.UltimaOnlineDirectory) || !File.Exists(Path.Combine(Settings.GlobalSettings.UltimaOnlineDirectory, "tiledata.mul")))
             {
-                bool foundFolder = false;
-                if (!CUOEnviroment.IsUnix)
-                {
-                    using (var fbd = new System.Windows.Forms.FolderBrowserDialog())
-                    {
-                        fbd.Description = "Please select your Ultima Online directory.";
-                        System.Windows.Forms.DialogResult result = fbd.ShowDialog();
-
-                        if (result == System.Windows.Forms.DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
-                        {
-                            if (Directory.Exists(fbd.SelectedPath) && File.Exists(Path.Combine(fbd.SelectedPath, "tiledata.mul")))
-                            {
-                                Settings.GlobalSettings.UltimaOnlineDirectory = fbd.SelectedPath;
-                                Settings.GlobalSettings.Save();
-                                foundFolder = true;
-                            }
-                        }
-                    }
-                }
-
-                if (!foundFolder)
-                {
-                    flags |= INVALID_UO_DIRECTORY;
-                }
+                flags |= INVALID_UO_DIRECTORY;
             }
 
             string clientVersionText = Settings.GlobalSettings.ClientVersion;
@@ -265,8 +219,7 @@ namespace ClassicUO
                         break;
                 }
 
-                Client.Run();
-
+                Client.Run(pluginHost);
             }
 
             Log.Trace("Closing...");
@@ -299,7 +252,7 @@ namespace ClassicUO
 
                 switch (cmd)
                 {
-                    // Here we have it! Using `-settings` option we can now set the filepath that will be used 
+                    // Here we have it! Using `-settings` option we can now set the filepath that will be used
                     // to load and save ClassicUO main settings instead of default `./settings.json`
                     // NOTE: All individual settings like `username`, `password`, etc passed in command-line options
                     // will override and overwrite those in the settings file because they have higher priority
@@ -397,8 +350,11 @@ namespace ClassicUO
                         break;
 
                     case "profiler":
-                        Profiler.Enabled = bool.Parse(value);
-
+                        if(string.IsNullOrEmpty(value) || bool.TryParse(value, out bool profilerEnabled) && profilerEnabled)
+                        {
+                            Profiler.Enabled = true;
+                            Log.Info("Profiler enabled");
+                        }
                         break;
 
                     case "saveaccount":
@@ -436,20 +392,6 @@ namespace ClassicUO
                     case "login_music_volume":
                     case "music_volume":
                         Settings.GlobalSettings.LoginMusicVolume = int.Parse(value);
-
-                        break;
-
-                    // ======= [SHARD_TYPE_FIX] =======
-                    // TODO old. maintain it for retrocompatibility
-                    case "shard_type":
-                    case "shard":
-                        Settings.GlobalSettings.ShardType = int.Parse(value);
-
-                        break;
-                    // ================================
-
-                    case "outlands":
-                        CUOEnviroment.IsOutlands = true;
 
                         break;
 
@@ -519,7 +461,7 @@ namespace ClassicUO
 
                         if (!string.IsNullOrEmpty(value))
                         {
-                            var vals = value.Split(',');
+                            string[] vals = value.Split(',');
 
                             foreach (string val in vals)
                             {
@@ -562,8 +504,55 @@ namespace ClassicUO
 
                         break;
 
+                    case "zlib":
+                        ZLib.SetForceManagedZlib(true);
+
+                        break;
                 }
             }
         }
+
+        private static void CopyRequiredLibs()
+        {
+            string nativePath = Path.Combine(AppContext.BaseDirectory, GetPlatformFolder());
+            if(Directory.Exists(nativePath))
+                foreach (string file in Directory.GetFiles(nativePath))
+                {
+                    string path = Path.Combine(AppContext.BaseDirectory, Path.GetFileName(file));
+                    bool copy = !File.Exists(path);
+
+                    if (!copy) //If file exists, see if they are *most likely* the same file
+                    {
+                        FileInfo existing = new(path);
+                        FileInfo newFile = new(file);
+
+                        if(existing.Length != newFile.Length)
+                            copy = true;
+                    }
+
+                    if (copy)
+                    {
+                        try
+                        {
+                            File.Copy(file, path, overwrite: true);
+                        }
+                        catch { }
+                    }
+                }
+        }
+
+        private static string GetPlatformFolder()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                return "x64";
+                // return RuntimeInformation.OSArchitecture == Architecture.Arm64 ? "win-arm" : "x64";
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                return "lib64";
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                return RuntimeInformation.OSArchitecture == Architecture.Arm64 ? "osx-arm" : "osx";
+
+            throw new PlatformNotSupportedException();
+        }
+
     }
 }

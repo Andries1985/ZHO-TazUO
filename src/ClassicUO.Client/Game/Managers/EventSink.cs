@@ -12,139 +12,167 @@ namespace ClassicUO.Game.Managers
         /// </summary>
         public static event EventHandler<EventArgs> OnPlayerCreated;
         public static void InvokeOnPlayerCreated() => OnPlayerCreated?.Invoke(null, EventArgs.Empty);
-        
+
         /// <summary>
         /// Invoked when an item is added to the client, sender is the Item
         /// </summary>
-        public static event EventHandler<EventArgs> OnItemCreated;
-        public static void InvokeOnItemCreated(Item sender) => OnItemCreated?.Invoke(sender, EventArgs.Empty);
+        internal static event EventHandler<EventArgs> OnItemCreated;
+        internal static event EventHandler<uint> PyOnItemCreated;
+        internal static void InvokeOnItemCreated(Item sender)
+        {
+            OnItemCreated?.Invoke(sender, EventArgs.Empty);
+            PyOnItemCreated?.Invoke(sender, sender.Serial);
+        }
 
         /// <summary>
         /// Invoked when an item is already in the client but has been updated, sender is the Item
         /// </summary>
-        public static event EventHandler<EventArgs> OnItemUpdated;
-        public static void InvokeOnItemUpdated(Item sender) => OnItemUpdated?.Invoke(sender, EventArgs.Empty);
+        internal static event EventHandler<EventArgs> OnItemUpdated;
+        internal static void InvokeOnItemUpdated(Item sender) => OnItemUpdated?.Invoke(sender, EventArgs.Empty);
 
         /// <summary>
         /// Invoked when a corpse is added to the client, sender is the corpse Item
         /// </summary>
-        public static event EventHandler<EventArgs> OnCorpseCreated;
-        public static void InvokeOnCorpseCreated(object sender) => OnCorpseCreated?.Invoke(sender, EventArgs.Empty);
+        internal static event EventHandler<EventArgs> OnCorpseCreated;
+        internal static void InvokeOnCorpseCreated(object sender) => OnCorpseCreated?.Invoke(sender, EventArgs.Empty);
 
         /// <summary>
         /// Invoked when the player is connected to a server
         /// </summary>
-        public static event EventHandler<EventArgs> OnConnected;
-        public static void InvokeOnConnected(object sender) => OnConnected?.Invoke(sender, EventArgs.Empty);
+        internal static event EventHandler<EventArgs> OnConnected;
+        internal static void InvokeOnConnected(object sender) => OnConnected?.Invoke(sender, EventArgs.Empty);
 
         /// <summary>
         /// Invoked when the player is connected to a server
         /// </summary>
-        public static event EventHandler<EventArgs> OnDisconnected;
-        public static void InvokeOnDisconnected(object sender) => OnDisconnected?.Invoke(sender, EventArgs.Empty);
+        internal static event EventHandler<EventArgs> OnDisconnected;
+        internal static void InvokeOnDisconnected(object sender) => OnDisconnected?.Invoke(sender, EventArgs.Empty);
 
         /// <summary>
         /// Invoked when any message is received from the server after client processing
         /// </summary>
-        public static event EventHandler<MessageEventArgs> MessageReceived;
-        public static void InvokeMessageReceived(object sender, MessageEventArgs e) => MessageReceived?.Invoke(sender, e);
+        internal static event EventHandler<MessageEventArgs> MessageReceived;
+        internal static void InvokeMessageReceived(object sender, MessageEventArgs e) => MessageReceived?.Invoke(sender, e);
 
         /// <summary>
         /// Invoked when any message is received from the server *before* client processing
         /// </summary>
-        public static event EventHandler<MessageEventArgs> RawMessageReceived;
-        public static void InvokeRawMessageReceived(object sender, MessageEventArgs e) => RawMessageReceived?.Invoke(sender, e);
+        internal static event EventHandler<MessageEventArgs> RawMessageReceived;
+        internal static void InvokeRawMessageReceived(object sender, MessageEventArgs e) => RawMessageReceived?.Invoke(sender, e);
 
         /// <summary>
         /// Not currently used. May be removed later or put into use, not sure right now
         /// </summary>
-        public static event EventHandler<MessageEventArgs> ClilocMessageReceived;
-        public static void InvokeClilocMessageReceived(object sender, MessageEventArgs e) => ClilocMessageReceived?.Invoke(sender, e);
+        internal static event EventHandler<MessageEventArgs> ClilocMessageReceived;
+        internal static void InvokeClilocMessageReceived(object sender, MessageEventArgs e) => ClilocMessageReceived?.Invoke(sender, e);
 
         /// <summary>
         /// Invoked anytime a message is added to the journal
         /// </summary>
-        public static event EventHandler<JournalEntry> JournalEntryAdded;
-        public static void InvokeJournalEntryAdded(object sender, JournalEntry e) => JournalEntryAdded?.Invoke(sender, e);
+        internal static event EventHandler<JournalEntry> JournalEntryAdded;
+        internal static void InvokeJournalEntryAdded(object sender, JournalEntry e) => JournalEntryAdded?.Invoke(sender, e);
 
         /// <summary>
         /// Invoked anytime we receive object property list data (Tooltip text for items)
         /// </summary>
-        public static event EventHandler<OPLEventArgs> OPLOnReceive;
-        public static void InvokeOPLOnReceive(object sender, OPLEventArgs e) => OPLOnReceive?.Invoke(sender, e);
+        internal static event EventHandler<OPLEventArgs> OPLOnReceive;
+        internal static void InvokeOPLOnReceive(object sender, OPLEventArgs e) => OPLOnReceive?.Invoke(sender, e);
 
         /// <summary>
         /// Invoked when a buff is "added" to a player
         /// </summary>
-        public static event EventHandler<BuffEventArgs> OnBuffAdded;
-        public static void InvokeOnBuffAdded(object sender, BuffEventArgs e) => OnBuffAdded?.Invoke(sender, e);
+        internal static event EventHandler<BuffEventArgs> OnBuffAdded;
+        internal static event EventHandler<LegionScripting.PyClasses.Buff> PyOnBuffAdded;
+        internal static void InvokeOnBuffAdded(object sender, BuffEventArgs e)
+        {
+            OnBuffAdded?.Invoke(sender, e);
+            PyOnBuffAdded?.Invoke(sender, new LegionScripting.PyClasses.Buff(e.Buff));
+        }
 
         /// <summary>
         /// Invoked when a buff is "removed" to a player (Called before removal)
         /// </summary>
-        public static event EventHandler<BuffEventArgs> OnBuffRemoved;
-        public static void InvokeOnBuffRemoved(object sender, BuffEventArgs e) => OnBuffRemoved?.Invoke(sender, e);
+        internal static event EventHandler<BuffEventArgs> OnBuffRemoved;
+        internal static event EventHandler<LegionScripting.PyClasses.Buff> PyOnBuffRemoved;
+        internal static void InvokeOnBuffRemoved(object sender, BuffEventArgs e)
+        {
+            OnBuffRemoved?.Invoke(sender, e);
+            PyOnBuffRemoved?.Invoke(sender, new LegionScripting.PyClasses.Buff(e.Buff));
+        }
 
         /// <summary>
         /// Invoked when the players position is changed
         /// </summary>
-        public static event EventHandler<PositionChangedArgs> OnPositionChanged;
-        public static void InvokeOnPositionChanged(object sender, PositionChangedArgs e) => OnPositionChanged?.Invoke(sender, e);
+        internal static event EventHandler<PositionChangedArgs> OnPositionChanged;
+        internal static void InvokeOnPositionChanged(object sender, PositionChangedArgs e) => OnPositionChanged?.Invoke(sender, e);
 
         /// <summary>
-        /// Invoked when any entity in game receives damage, not neccesarily the player.
+        /// Invoked when any entity in game receives damage, not necessarily the player.
         /// </summary>
-        public static event EventHandler<int> OnEntityDamage;
-        public static void InvokeOnEntityDamage(object sender, int e) => OnEntityDamage?.Invoke(sender, e);
+        internal static event EventHandler<int> OnEntityDamage;
+        internal static void InvokeOnEntityDamage(object sender, int e) => OnEntityDamage?.Invoke(sender, e);
 
         /// <summary>
         /// Invoked when a container is opened. Sender is the Item, serial is the item serial.
         /// </summary>
-        public static event EventHandler<uint> OnOpenContainer;
-        public static void InvokeOnOpenContainer(Item sender, uint serial) => OnOpenContainer?.Invoke(sender, serial);
+        internal static event EventHandler<uint> OnOpenContainer;
+        internal static void InvokeOnOpenContainer(Item sender, uint serial) => OnOpenContainer?.Invoke(sender, serial);
 
         /// <summary>
         /// Invoked when the player receives a death packet from the server
         /// </summary>
-        public static event EventHandler<uint> OnPlayerDeath;
-        public static void InvokeOnPlayerDeath(object sender, uint serial) => OnPlayerDeath?.Invoke(sender, serial);
+        internal static event EventHandler<uint> OnPlayerDeath;
+        internal static void InvokeOnPlayerDeath(object sender, uint serial) => OnPlayerDeath?.Invoke(sender, serial);
 
         /// <summary>
         /// Invoked when the player or server tells the client to path find
         /// Vector is X, Y, Z and Distance
         /// </summary>
-        public static event EventHandler<Vector4> OnPathFinding;
-        public static void InvokeOnPathFinding(object sender, Vector4 e) => OnPathFinding?.Invoke(sender, e);
+        internal static event EventHandler<Vector4> OnPathFinding;
+        internal static void InvokeOnPathFinding(object sender, Vector4 e) => OnPathFinding?.Invoke(sender, e);
 
         /// <summary>
         /// Invoked when the server asks the client to generate some weather
         /// </summary>
-        public static event EventHandler<WeatherEventArgs> OnSetWeather;
-        public static void InvokeOnSetWeather(object sender, WeatherEventArgs e) => OnSetWeather?.Invoke(sender, e);
+        internal static event EventHandler<WeatherEventArgs> OnSetWeather;
+        internal static void InvokeOnSetWeather(object sender, WeatherEventArgs e) => OnSetWeather?.Invoke(sender, e);
 
         /// <summary>
-        /// Invoked when a stat of the player is changed(min or max). Currently only Hits is set up.
+        /// Invoked when the players hits changed.
         /// </summary>
-        public static event EventHandler<PlayerStatChangedArgs> OnPlayerStatChange;
-        public static void InvokeOnPlayerStatChange(object sender, PlayerStatChangedArgs e) => OnPlayerStatChange?.Invoke(sender, e);
-
-        /// <summary>
-        /// This  occurs *before* any TazUO tooltip processing occurs allowing you to modify it before processing happens
-        /// </summary>
-        public static PreProcessTooltipDelegate PreProcessTooltip;
-        public delegate void PreProcessTooltipDelegate(ref ItemPropertiesData e);
-
-        /// <summary>
-        /// This event occurs *after* TazUO tooltip processing, this is the final string before being rendered into a tooltip window
-        /// </summary>
-        public static PostProcessTooltipDelegate PostProcessTooltip;
-        public delegate void PostProcessTooltipDelegate(ref string e);
+        internal static event EventHandler<int> OnPlayerHitsChanged;
+        internal static void InvokeOnPlayerStatChange(object sender, int newValue) => OnPlayerHitsChanged?.Invoke(sender, newValue);
 
         /// <summary>
         /// Called when the visual spell manager detects a spell being cast.
+        /// The event argument is the spell ID.
         /// </summary>
         public static event EventHandler<int> SpellCastBegin;
+        /// <summary>Invokes <see cref="SpellCastBegin"/>.</summary>
         public static void InvokeSpellCastBegin(int spell) => SpellCastBegin?.Invoke(null, spell);
+        /// <summary>
+        /// Called when the visual spell manager detects a spell done being cast.
+        /// The event argument is the spell ID.
+        /// </summary>
+        public static event EventHandler SpellCastEnd;
+        /// <summary>Invokes <see cref="SpellCastEnd"/>.</summary>
+        public static void InvokeSpellCastEnd() => SpellCastEnd?.Invoke(null, null);
+        /// <summary>
+        /// Called when the visual spell manager detects a spell recovery phase.
+        /// The event argument is the spell ID.
+        /// </summary>
+        [Obsolete]
+        public static event EventHandler<int> SpellRecoveryBegin;
+        /// <summary>Invokes <see cref="SpellRecoveryBegin"/>.</summary>
+        public static void InvokeSpellRecoveryBegin(int spell) => SpellRecoveryBegin?.Invoke(null, spell);
+        /// <summary>
+        /// Called when the visual spell manager detects a spell recovery phase end.
+        /// The event argument is the spell ID.
+        /// </summary>
+        [Obsolete]
+        public static event EventHandler SpellRecoveryEnd;
+        /// <summary>Invokes <see cref="SpellRecoveryEnd"/>.</summary>
+        public static void InvokeSpellRecoveryEnd() => SpellRecoveryEnd?.Invoke(null, null);
     }
 
     public class OPLEventArgs : EventArgs
@@ -193,29 +221,5 @@ namespace ClassicUO.Game.Managers
         public WeatherType Type { get; }
         public byte Count { get; }
         public byte Temp { get; }
-    }
-
-    public class PlayerStatChangedArgs : EventArgs
-    {
-        public PlayerStatChangedArgs(PlayerStat stat, int oldValue, int newValue)
-        {
-            Stat = stat;
-            OldValue = oldValue;
-            NewValue = newValue;
-        }
-
-        public PlayerStat Stat { get; }
-        public int OldValue { get; }
-        public int NewValue { get; }
-
-        public enum PlayerStat
-        {
-            Hits,
-            HitsMax,
-            Mana,
-            ManaMax,
-            Stamina,
-            StaminaMax
-        }
     }
 }

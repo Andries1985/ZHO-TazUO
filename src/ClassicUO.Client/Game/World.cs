@@ -1,35 +1,6 @@
-﻿#region license
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
-
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using ClassicUO.IO.Audio;
@@ -38,7 +9,6 @@ using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.Map;
 using ClassicUO.Game.UI.Gumps;
-using ClassicUO.Utility.Platforms;
 using Microsoft.Xna.Framework;
 using MathHelper = ClassicUO.Utility.MathHelper;
 using ClassicUO.Configuration;
@@ -49,56 +19,133 @@ using ClassicUO.Game.UI;
 
 namespace ClassicUO.Game
 {
-    public static class World
+    public sealed class World
     {
-        private static readonly EffectManager _effectManager = new EffectManager();
-        private static readonly List<uint> _toRemove = new List<uint>();
-        private static uint _timeToDelete;
+        public static World Instance { get; private set; }
+        private readonly EffectManager _effectManager;
+        private readonly List<uint> _toRemove = new List<uint>();
+        private uint _timeToDelete;
 
-        public static Point RangeSize;
+        public World()
+        {
+            Instance = this;
+            WMapManager = new WorldMapEntityManager(this);
+            CorpseManager = new CorpseManager(this);
+            Party = new PartyManager(this);
+            HouseManager = new HouseManager(this);
+            WorldTextManager = new WorldTextManager(this);
+            _effectManager = new EffectManager(this);
+            MessageManager = new MessageManager(this);
+            ContainerManager = new ContainerManager(this);
+            IgnoreManager = new IgnoreManager(this);
+            SkillsGroupManager = new SkillsGroupManager(this);
+            ChatManager = new ChatManager(this);
+            AuraManager = new AuraManager(this);
+            TargetManager = new TargetManager(this);
+            DelayedObjectClickManager = new DelayedObjectClickManager(this);
+            BoatMovingManager = new BoatMovingManager(this);
+            NameOverHeadManager = new NameOverHeadManager(this);
+            Macros = new MacroManager(this);
+            CommandManager = new CommandManager(this);
+            Weather = new Weather(this);
+            InfoBars = new InfoBarManager(this);
+            DurabilityManager = new DurabilityManager(this);
+            OPL = new ObjectPropertiesListManager(this);
+            CoolDownBarManager = new CoolDownBarManager(this);
+        }
 
-        public static PlayerMobile Player { get; private set; }
+        public Point RangeSize;
 
-        public static HouseCustomizationManager CustomHouseManager;
+        public PlayerMobile Player
+        {
+            get;
+            private set
+            {
+                field = value;
+                UIManager.InGame = Map != null && field != null;
+            }
+        }
 
-        public static WorldMapEntityManager WMapManager = new WorldMapEntityManager();
+        public HouseCustomizationManager CustomHouseManager;
 
-        public static ActiveSpellIconsManager ActiveSpellIcons = new ActiveSpellIconsManager();
+        public WorldMapEntityManager WMapManager { get; }
 
-        public static uint LastObject, ObjectToRemove;
+        public ActiveSpellIconsManager ActiveSpellIcons = new ActiveSpellIconsManager();
 
-        public static ObjectPropertiesListManager OPL { get; } = new ObjectPropertiesListManager();
-        public static DurabilityManager DurabilityManager { get; } = new DurabilityManager();
+        public uint LastObject, ObjectToRemove;
 
-        public static CorpseManager CorpseManager { get; } = new CorpseManager();
+        public ObjectPropertiesListManager OPL { get; }
+        public DurabilityManager DurabilityManager { get; }
 
-        public static PartyManager Party { get; } = new PartyManager();
+        public CorpseManager CorpseManager { get; }
 
-        public static HouseManager HouseManager { get; } = new HouseManager();
+        public PartyManager Party { get; }
 
-        public static Dictionary<uint, Item> Items { get; } = new Dictionary<uint, Item>();
+        public HouseManager HouseManager { get; }
 
-        public static Dictionary<uint, Mobile> Mobiles { get; } = new Dictionary<uint, Mobile>();
+        public MessageManager MessageManager { get; }
 
-        public static Map.Map Map { get; private set; }
+        public ContainerManager ContainerManager { get; }
 
-        public static byte ClientViewRange { get; set; } = Constants.MAX_VIEW_RANGE;
+        public IgnoreManager IgnoreManager { get; }
 
-        public static bool SkillsRequested { get; set; }
+        public SkillsGroupManager SkillsGroupManager { get; }
 
-        public static Season Season { get; private set; } = Season.Summer;
-        public static Season OldSeason { get; set; } = Season.Summer;
+        public ChatManager ChatManager { get; }
 
-        public static int OldMusicIndex { get; set; }
+        public AuraManager AuraManager { get; }
 
-        public static WorldTextManager WorldTextManager { get; } = new WorldTextManager();
+        public TargetManager TargetManager { get; }
 
-        public static JournalManager Journal { get; } = new JournalManager();
+        public DelayedObjectClickManager DelayedObjectClickManager { get; }
 
-        public static CoolDownBarManager CoolDownBarManager { get; } = new CoolDownBarManager();
+        public BoatMovingManager BoatMovingManager { get; }
+
+        public NameOverHeadManager NameOverHeadManager { get; }
+
+        public MacroManager Macros { get; }
+
+        public CommandManager CommandManager { get; }
+
+        public Weather Weather { get; }
+
+        public InfoBarManager InfoBars { get; }
+
+        public Dictionary<uint, Item> Items { get; } = new Dictionary<uint, Item>();
+
+        public Dictionary<uint, Mobile> Mobiles { get; } = new Dictionary<uint, Mobile>();
+
+        // Separate collection for corpses to optimize iteration in TryOpenCorpses
+        private readonly HashSet<Item> _corpses = new HashSet<Item>();
+        private readonly object _corpsesLock = new object();
+
+        public Map.Map Map
+        {
+            get;
+            private set
+            {
+                field = value;
+                UIManager.InGame = Player != null && field != null;
+            }
+        }
+
+        public byte ClientViewRange { get; set; } = Constants.MAX_VIEW_RANGE;
+
+        public bool SkillsRequested { get; set; }
+
+        public Season Season { get; private set; } = Season.Summer;
+        public Season OldSeason { get; set; } = Season.Summer;
+
+        public int OldMusicIndex { get; set; }
+
+        public WorldTextManager WorldTextManager { get; }
+
+        public JournalManager Journal { get; } = new JournalManager();
+
+        public CoolDownBarManager CoolDownBarManager { get; }
 
 
-        public static int MapIndex
+        public int MapIndex
         {
             get => Map?.Index ?? -1;
             set
@@ -132,32 +179,38 @@ namespace ClassicUO.Game
                         {
                             value = 0;
                         }
-                        MapLoader.Instance.LoadMap(value, ClientFeatures.Flags.HasFlag(CharacterListFlags.CLF_UNLOCK_FELUCCA_AREAS));
-                        Map = new Map.Map(value);
+
+                        Client.Game.UO.FileManager.Maps.LoadMap(value, ClientFeatures.Flags.HasFlag(CharacterListFlags.CLF_UNLOCK_FELUCCA_AREAS));
+                        Map = new Map.Map(this, value);
 
                         Player.SetInWorldTile(x, y, z);
                         Player.ClearSteps();
                     }
                     else
                     {
-                        MapLoader.Instance.LoadMap(value, ClientFeatures.Flags.HasFlag(CharacterListFlags.CLF_UNLOCK_FELUCCA_AREAS));
-                        Map = new Map.Map(value);
+                        Client.Game.UO.FileManager.Maps.LoadMap(value, ClientFeatures.Flags.HasFlag(CharacterListFlags.CLF_UNLOCK_FELUCCA_AREAS));
+                        Map = new Map.Map(this, value);
                     }
 
                     // force cursor update when switching map
-                    if (Client.Game.GameCursor != null)
+                    if (Client.Game.UO.GameCursor != null)
                     {
-                        Client.Game.GameCursor.Graphic = 0xFFFF;
+                        Client.Game.UO.GameCursor.Graphic = 0xFFFF;
                     }
 
-                    UoAssist.SignalMapChanged(value);
+                    // Notify web server of map change
+                    if (Managers.MapWebServerManager.Instance.IsRunning)
+                    {
+                        Utility.Logging.Log.Info($"Map changed to {value}, notifying web server");
+                        Managers.MapWebServerManager.Instance.RegenerateMapPng();
+                    }
                 }
             }
         }
 
-        public static bool InGame => Player != null && Map != null;
+        public bool InGame => Player != null && Map != null;
 
-        public static IsometricLight Light { get; } = new IsometricLight
+        public IsometricLight Light { get; } = new IsometricLight
         {
             Overall = 0,
             Personal = 0,
@@ -165,20 +218,60 @@ namespace ClassicUO.Game
             RealPersonal = 0
         };
 
-        public static LockedFeatures ClientLockedFeatures { get; } = new LockedFeatures();
+        public LockedFeatures ClientLockedFeatures { get; } = new LockedFeatures();
 
-        public static ClientFeatures ClientFeatures { get; } = new ClientFeatures();
+        public ClientFeatures ClientFeatures { get; } = new ClientFeatures();
 
-        public static string ServerName { get; set; } = "_";
+        public string ServerName { get; set; } = "_";
 
+        /// <summary>
+        /// Adds a corpse to the corpse collection for faster iteration.
+        /// Thread-safe.
+        /// </summary>
+        public void AddCorpse(Item item)
+        {
+            if (item != null && !item.IsDestroyed)
+            {
+                lock (_corpsesLock)
+                {
+                    _corpses.Add(item);
+                }
+            }
+        }
 
+        /// <summary>
+        /// Removes a corpse from the corpse collection.
+        /// Thread-safe.
+        /// </summary>
+        public void RemoveCorpse(Item item)
+        {
+            if (item != null)
+            {
+                lock (_corpsesLock)
+                {
+                    _corpses.Remove(item);
+                }
+            }
+        }
 
-        public static void CreatePlayer(uint serial)
+        /// <summary>
+        /// Gets a snapshot of corpses for iteration.
+        /// Thread-safe.
+        /// </summary>
+        public Item[] GetCorpseSnapshot()
+        {
+            lock (_corpsesLock)
+            {
+                return _corpses.ToArray();
+            }
+        }
+
+        public void CreatePlayer(uint serial)
         {
             if (ProfileManager.CurrentProfile == null)
             {
-                string lastChar = LastCharacterManager.GetLastCharacter(LoginScene.Account, World.ServerName);
-                ProfileManager.Load(World.ServerName, LoginScene.Account, lastChar);
+                string lastChar = LastCharacterManager.GetLastCharacter(LoginScene.Account, ServerName);
+                ProfileManager.Load(ServerName, LoginScene.Account, lastChar);
             }
 
             if (Player != null)
@@ -186,31 +279,37 @@ namespace ClassicUO.Game
                 Clear();
             }
 
-            Player = new PlayerMobile(serial);
+            Player = new PlayerMobile(this, serial);
             Mobiles.Add(Player);
             EventSink.InvokeOnPlayerCreated();
             Log.Trace($"Player [0x{serial:X8}] created");
         }
 
-        public static void ChangeSeason(Season season, int music)
+        public void ChangeSeason(Season season, int music)
         {
             Season = season;
 
-            foreach (Chunk chunk in Map.GetUsedChunks())
+            try
             {
-                for (int x = 0; x < 8; x++)
+                foreach (Chunk chunk in Map.GetUsedChunks())
                 {
-                    for (int y = 0; y < 8; y++)
+                    for (int x = 0; x < 8; x++)
                     {
-                        for (GameObject obj = chunk?.GetHeadObject(x, y); obj != null; obj = obj.TNext)
+                        for (int y = 0; y < 8; y++)
                         {
-                            obj.UpdateGraphicBySeason();
+                            for (GameObject obj = chunk?.GetHeadObject(x, y); obj != null; obj = obj.TNext)
+                            {
+                                obj.UpdateGraphicBySeason();
+                            }
                         }
                     }
                 }
             }
+            catch (Exception e)
+            {
+                Log.Error("Failed to change season: " + e);
+            }
 
-            //TODO(deccer): refactor this out into _audioPlayer.PlayMusic(...)
             UOMusic currentMusic = Client.Game.Audio.GetCurrentMusic();
             if (currentMusic == null || currentMusic.Index == Client.Game.Audio.LoginMusicIndex)
             {
@@ -229,8 +328,12 @@ namespace ClassicUO.Game
         }
         */
 
-        public static void Update()
+        public void Update()
         {
+            // Process asynchronously loaded map chunks once per frame
+            // instead of on every GetChunk call for better performance
+            Map?.ProcessLoadedChunks();
+
             if (Player != null)
             {
                 if (SerialHelper.IsValid(ObjectToRemove))
@@ -302,7 +405,7 @@ namespace ClassicUO.Game
                                 mob.Serial,
                                 mob.X,
                                 mob.Y,
-                                MathHelper.PercetangeOf(mob.Hits, mob.HitsMax),
+                                MathHelper.PercentageOf(mob.Hits, mob.HitsMax),
                                 MapIndex,
                                 true,
                                 mob.Name
@@ -315,7 +418,7 @@ namespace ClassicUO.Game
                                 mob.Serial,
                                 mob.X,
                                 mob.Y,
-                                MathHelper.PercetangeOf(mob.Hits, mob.HitsMax),
+                                MathHelper.PercentageOf(mob.Hits, mob.HitsMax),
                                 MapIndex,
                                 false,
                                 mob.Name
@@ -375,7 +478,7 @@ namespace ClassicUO.Game
             }
         }
 
-        public static bool Contains(uint serial)
+        public bool Contains(uint serial)
         {
             if (SerialHelper.IsItem(serial))
             {
@@ -385,7 +488,40 @@ namespace ClassicUO.Game
             return SerialHelper.IsMobile(serial) && Mobiles.Contains(serial);
         }
 
-        public static Entity Get(uint serial)
+        public GameObject GetStaticOrMulti(ushort graphic, ushort x, ushort y, sbyte z)
+        {
+            if (Map is null)
+            {
+                Log.Error("World.GetStaticOrMulti called without a valid map.");
+                return null;
+            }
+
+            if (Map.GetTile(x, y) is not Land land)
+            {
+                return null;
+            }
+
+            GameObject i = land.TNext;
+            while (i is not null)
+            {
+                if (i is Static s)
+                {
+                    if (s.Graphic == graphic && s.X == x && s.Y == y && s.Z == z)
+                        return s;
+                }
+                else if (i is Multi m)
+                {
+                    if (m.Graphic == graphic && m.X == x && m.Y == y && m.Z == z)
+                        return m;
+                }
+
+                i = i.TNext;
+            }
+
+            return null;
+        }
+
+        public Entity Get(uint serial)
         {
             Entity ent;
 
@@ -416,7 +552,7 @@ namespace ClassicUO.Game
             return ent;
         }
 
-        public static Item GetOrCreateItem(uint serial)
+        public Item GetOrCreateItem(uint serial)
         {
             Item item = Items.Get(serial);
 
@@ -428,14 +564,14 @@ namespace ClassicUO.Game
 
             if (item == null /*|| item.IsDestroyed*/)
             {
-                item = Item.Create(serial);
+                item = Item.Create(this, serial);
                 Items.Add(item);
             }
 
             return item;
         }
 
-        public static Mobile GetOrCreateMobile(uint serial)
+        public Mobile GetOrCreateMobile(uint serial)
         {
             Mobile mob = Mobiles.Get(serial);
 
@@ -447,14 +583,14 @@ namespace ClassicUO.Game
 
             if (mob == null /*|| mob.IsDestroyed*/)
             {
-                mob = Mobile.Create(serial);
+                mob = Mobile.Create(this, serial);
                 Mobiles.Add(mob);
             }
 
             return mob;
         }
 
-        public static void RemoveItemFromContainer(uint serial)
+        public void RemoveItemFromContainer(uint serial)
         {
             Item it = Items.Get(serial);
 
@@ -464,7 +600,7 @@ namespace ClassicUO.Game
             }
         }
 
-        public static void RemoveItemFromContainer(Item obj)
+        public void RemoveItemFromContainer(Item obj)
         {
             uint containerSerial = obj.Container;
 
@@ -502,7 +638,7 @@ namespace ClassicUO.Game
             obj.RemoveFromTile();
         }
 
-        public static bool RemoveItem(uint serial, bool forceRemove = false)
+        public bool RemoveItem(uint serial, bool forceRemove = false)
         {
             Item item = Items.Get(serial);
 
@@ -534,7 +670,7 @@ namespace ClassicUO.Game
             return true;
         }
 
-        public static bool RemoveMobile(uint serial, bool forceRemove = false)
+        public bool RemoveMobile(uint serial, bool forceRemove = false)
         {
             Mobile mobile = Mobiles.Get(serial);
 
@@ -565,7 +701,7 @@ namespace ClassicUO.Game
             return true;
         }
 
-        public static void SpawnEffect
+        public void SpawnEffect
         (
             GraphicEffectType type,
             uint source,
@@ -584,9 +720,7 @@ namespace ClassicUO.Game
             bool doesExplode,
             bool hasparticles,
             GraphicEffectBlendMode blendmode
-        )
-        {
-            _effectManager.CreateEffect
+        ) => _effectManager.CreateEffect
             (
                 type,
                 source,
@@ -606,9 +740,8 @@ namespace ClassicUO.Game
                 hasparticles,
                 blendmode
             );
-        }
 
-        public static uint FindNearest(ScanTypeObject scanType)
+        public uint FindNearest(ScanTypeObject scanType)
         {
             int distance = int.MaxValue;
             uint serial = 0;
@@ -674,13 +807,13 @@ namespace ClassicUO.Game
             return serial;
         }
 
-        public static uint FindNext(ScanTypeObject scanType, uint lastSerial, bool reverse)
+        public uint FindNext(ScanTypeObject scanType, uint lastSerial, bool reverse)
         {
             bool found = false;
 
             if (scanType == ScanTypeObject.Objects)
             {
-                var items = reverse ? Items.Values.Reverse() : Items.Values;
+                IEnumerable<Item> items = reverse ? Items.Values.Reverse() : Items.Values;
                 foreach (Item item in items)
                 {
                     if (item.IsMulti || item.IsDestroyed || !item.OnGround)
@@ -763,7 +896,7 @@ namespace ClassicUO.Game
         }
 
 
-        public static void Clear()
+        public void Clear()
         {
             foreach (Mobile mobile in Mobiles.Values)
             {
@@ -775,14 +908,16 @@ namespace ClassicUO.Game
                 RemoveItem(item);
             }
 
-            UIManager.GetGump<BaseHealthBarGump>(Player.Serial)?.Dispose();
-
-            GridContainer.ClearInstance();
+            UIManager.GetGump<BaseHealthBarGump>(Player?.Serial)?.Dispose();
 
             ObjectToRemove = 0;
             LastObject = 0;
             Items.Clear();
             Mobiles.Clear();
+            lock (_corpsesLock)
+            {
+                _corpses.Clear();
+            }
             Player?.Destroy();
             Player = null;
             Map?.Destroy();
@@ -810,7 +945,7 @@ namespace ClassicUO.Game
             SkillsRequested = false;
         }
 
-        private static void InternalMapChangeClear(bool noplayer)
+        private void InternalMapChangeClear(bool noplayer)
         {
             if (!noplayer)
             {

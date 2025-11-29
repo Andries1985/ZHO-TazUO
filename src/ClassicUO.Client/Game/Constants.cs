@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 namespace ClassicUO.Game
 {
@@ -37,7 +7,7 @@ namespace ClassicUO.Game
         public const string WIKI_LINK = "https://github.com/ClassicUO/ClassicUO/wiki";
 
         public const int MIN_FPS = 12;
-        public const int MAX_FPS = 250;
+        public const int MAX_FPS = 1000;
         public const int LOGIN_SCREEN_FPS = 60;
 
         public const int CHARACTER_ANIMATION_DELAY = 80;
@@ -142,5 +112,21 @@ namespace ClassicUO.Game
             false, // backpack
             true, true, true, false, false, false, false, false
         };
+
+        public const uint RECHECK_HITS_STATUS = 20000;
+
+        public static class SqlSettings
+        {
+            public const string MANAGED_ZLIB = "USE_MANAGED_ZLIB";
+            public const string IMGUI_ALPHA = "imgui_window_alpha";
+            public const string IMGUI_THEME = "imgui_theme";
+            public const string IMGUI_CUSTOM_THEME_JSON = "imgui_custom_theme_json";
+            public const string USE_LONG_DISTANCE_PATHING = "use_long_distance_pathing";
+            public const string LONG_DISTANCE_PATHING_SPEED = "long_distance_pathing_speed";
+            public const string SCALE_PETS_ENABLED = "scale_pets_enabled";
+            public const string WEB_MAP_PORT = "web_map_port";
+            public const string WEB_MAP_AUTO_START = "web_map_auto_start";
+            public const string MIN_GUMP_MOVE_DIST = "min_gump_move_dist";
+        }
     }
 }

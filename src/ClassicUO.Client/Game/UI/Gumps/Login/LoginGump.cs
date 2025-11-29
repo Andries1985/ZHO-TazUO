@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
@@ -40,12 +10,12 @@ using ClassicUO.Renderer;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
-using SDL2;
+using SDL3;
 using System.Collections.Generic;
 
 namespace ClassicUO.Game.UI.Gumps.Login
 {
-    internal class LoginGump : Gump
+    public class LoginGump : Gump
     {
         private readonly ushort _buttonNormal;
         private readonly ushort _buttonOver;
@@ -57,8 +27,13 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
         private float _time;
 
-        public LoginGump(LoginScene scene) : base(0, 0)
+        public static LoginGump Instance { get; private set; }
+
+        public LoginGump(World world, LoginScene scene) : base(world, 0, 0)
         {
+            Instance?.Dispose();
+            Instance = this;
+
             CanCloseWithRightClick = false;
 
             AcceptKeyboardInput = false;
@@ -67,13 +42,13 @@ namespace ClassicUO.Game.UI.Gumps.Login
             byte font;
             ushort hue;
 
-            if (Client.Version < ClientVersion.CV_706400)
+            if (Client.Game.UO.Version < ClientVersion.CV_706400)
             {
                 _buttonNormal = 0x15A4;
                 _buttonOver = 0x15A5;
                 const ushort HUE = 0x0386;
 
-                if (Client.Version >= ClientVersion.CV_500A)
+                if (Client.Game.UO.Version >= ClientVersion.CV_500A)
                 {
                     Add(new GumpPic(0, 0, 0x2329, 0));
                 }
@@ -104,7 +79,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     }
                 );
 
-                if (Client.Version < ClientVersion.CV_500A)
+                if (Client.Game.UO.Version < ClientVersion.CV_500A)
                 {
                     Add(new GumpPic(286, 45, 0x058A, 0));
                 }
@@ -391,7 +366,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             string[] accts = SimpleAccountManager.GetAccounts();
             if (accts.Length > 0)
             {
-                _textboxAccount.ContextMenu = new ContextMenuControl();
+                _textboxAccount.ContextMenu = new ContextMenuControl(this);
                 foreach (string acct in accts)
                 {
                     _textboxAccount.ContextMenu.Add(new ContextMenuItemEntry(acct, () => { _textboxAccount.SetText(acct); }));
@@ -483,7 +458,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
             _hit.MouseUp += (s, e) =>
             {
-                Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/bittiez/TazUO/wiki");
+                Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/PlayTazUO/TazUO/wiki");
             };
 
             Add(_ = TextBox.GetOne("TazUO Discord", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
@@ -496,7 +471,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 Utility.Platforms.PlatformHelper.LaunchBrowser("https://discord.gg/QvqzkB95G4");
             };
 
-            Checkbox loginmusic_checkbox = new Checkbox
+            var loginmusic_checkbox = new Checkbox
             (
                 0x00D2,
                 0x00D3,
@@ -513,7 +488,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
             Add(loginmusic_checkbox);
 
-            HSliderBar login_music = new HSliderBar
+            var login_music = new HSliderBar
             (
                 loginmusic_checkbox.X + loginmusic_checkbox.Width + 10,
                 loginmusic_checkbox.Y + 4,
@@ -556,10 +531,10 @@ namespace ClassicUO.Game.UI.Gumps.Login
             }
         }
 
-        protected override void OnControllerButtonUp(SDL.SDL_GameControllerButton button)
+        protected override void OnControllerButtonUp(SDL.SDL_GamepadButton button)
         {
             base.OnControllerButtonUp(button);
-            if (button == SDL.SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_A)
+            if (button == SDL.SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH)
             {
                 SaveCheckboxStatus();
                 LoginScene ls = Client.Game.GetScene<LoginScene>();
@@ -592,6 +567,12 @@ namespace ClassicUO.Game.UI.Gumps.Login
         {
             if (IsDisposed)
             {
+                return;
+            }
+
+            if (World.Instance != null && World.Instance.InGame)
+            {
+                Dispose();
                 return;
             }
 
@@ -649,7 +630,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     break;
 
                 case Buttons.Credits:
-                    UIManager.Add(new CreditsGump());
+                    UIManager.Add(new CreditsGump(World));
 
                     break;
             }
@@ -760,10 +741,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 base.Dispose();
             }
 
-            protected override void OnTextInput(string c)
-            {
-                base.OnTextInput(c);
-            }
+            protected override void OnTextInput(string c) => base.OnTextInput(c);
 
             protected override void OnTextChanged()
             {
@@ -787,10 +765,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 UpdateCaretScreenPosition();
             }
 
-            private new void UpdateCaretScreenPosition()
-            {
-                _caretScreenPosition = _rendererText.GetCaretPosition(Stb.CursorIndex);
-            }
+            private new void UpdateCaretScreenPosition() => _caretScreenPosition = _rendererText.GetCaretPosition(Stb.CursorIndex);
 
             public override bool Draw(UltimaBatcher2D batcher, int x, int y)
             {

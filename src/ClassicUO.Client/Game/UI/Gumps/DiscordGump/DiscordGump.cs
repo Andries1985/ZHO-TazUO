@@ -23,7 +23,7 @@ public class DiscordGump : Gump
     private DiscordChatAreaControl _discordChatArea;
     private MenuButton menuButton;
 
-    public DiscordGump() : base(0, 0)
+    public DiscordGump(World world) : base(world, 0, 0)
     {
         Width = WIDTH;
         Height = HEIGHT;
@@ -66,7 +66,7 @@ public class DiscordGump : Gump
 
     private void OnDMReceived(MessageHandle msg)
     {
-        var id = msg.AuthorId();
+        ulong id = msg.AuthorId();
 
         if (id == DiscordManager.Instance.UserId) //Message was sent by us
             id = msg.RecipientId();               //Put this into the dmg history for this user
@@ -79,16 +79,14 @@ public class DiscordGump : Gump
         _discordChatArea.AddMessageToChatBox(msg);
     }
 
-    private void OnUserUpdated()
-    {
-        _discordFriendList.BuildFriendsList();
-    }
+    private void OnUserUpdated() => _discordFriendList.BuildFriendsList();
 
     private void BuildLeftArea()
     {
         AcceptMouseInput = true;
 
-        _discordLogo = new(LEFT_WIDTH / 2 - 66, HEIGHT / 2 - 50, PNGLoader.Instance.EmbeddedArt["Discord-Symbol-Blurple-SM.png"]);
+        PNGLoader.Instance.TryGetEmbeddedTexture("Discord-Symbol-Blurple-SM.png", out Microsoft.Xna.Framework.Graphics.Texture2D discordTexture);
+        _discordLogo = new(LEFT_WIDTH / 2 - 66, HEIGHT / 2 - 50, discordTexture);
         Add(_discordLogo);
 
         AlphaBlendControl c;
@@ -111,7 +109,7 @@ public class DiscordGump : Gump
             Add(_connect);
         }
 
-        var splitH = (HEIGHT - 20) / 2;
+        int splitH = (HEIGHT - 20) / 2;
 
         _statusText = TextBox.GetOne(DiscordManager.Instance.StatusText, TrueTypeLoader.EMBEDDED_FONT, 16f, Color.DarkOrange, TextBox.RTLOptions.Default());
         Add(_statusText);
@@ -177,7 +175,7 @@ public class DiscordGump : Gump
 
         if (isDm)
         {
-            var user = DiscordManager.Instance.GetUser(channelId);
+            UserHandle user = DiscordManager.Instance.GetUser(channelId);
             chanName = user.DisplayName();
         }
         else if (DiscordManager.Instance.GetLobby(channelId) is LobbyHandle lobby)
@@ -192,10 +190,7 @@ public class DiscordGump : Gump
         _currentChatTitle.Text = chanName;
     }
 
-    private void OnStatusTextUpdated()
-    {
-        _statusText.Text = DiscordManager.Instance.StatusText;
-    }
+    private void OnStatusTextUpdated() => _statusText.Text = DiscordManager.Instance.StatusText;
 
     private void OnConnectClicked(object sender, MouseEventArgs e)
     {
@@ -221,7 +216,7 @@ public class DiscordGump : Gump
             Add(menuButton);
         }
         
-        menuButton.ContextMenu = new ContextMenuControl();
+        menuButton.ContextMenu = new ContextMenuControl(this);
         menuButton.ContextMenu.Add(new ContextMenuItemEntry("Show DM messages in system chat and journal?", () => { DiscordManager.DiscordSettings.ShowDMInGame = !DiscordManager.DiscordSettings.ShowDMInGame; GenMenuContextMenu(true); }, true, DiscordManager.DiscordSettings.ShowDMInGame));
         menuButton.ContextMenu.Add(new ContextMenuItemEntry("Show Channel messages in system chat and journal?", () => { DiscordManager.DiscordSettings.ShowChatInGame = !DiscordManager.DiscordSettings.ShowChatInGame; GenMenuContextMenu(true); }, true, DiscordManager.DiscordSettings.ShowChatInGame));
     }

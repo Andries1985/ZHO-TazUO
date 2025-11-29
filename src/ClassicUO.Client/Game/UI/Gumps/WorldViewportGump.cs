@@ -1,39 +1,10 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
+using System.Timers;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.Scenes;
@@ -50,7 +21,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class WorldViewportGump : Gump
+    public class WorldViewportGump : Gump
     {
         public const int BORDER_WIDTH = 5;
         private readonly BorderControl _borderControl;
@@ -61,10 +32,11 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly GameScene _scene;
         private readonly SystemChatControl _systemChatControl;
 
-        private static Microsoft.Xna.Framework.Graphics.Texture2D damageWindowOutline = SolidColorTextureCache.GetTexture(Color.White);
+        private static Texture2D damageWindowOutline = SolidColorTextureCache.GetTexture(Color.White);
         public static Vector3 DamageWindowOutlineHue = ShaderHueTranslator.GetHueVector(32);
 
-        public WorldViewportGump(GameScene scene) : base(0, 0)
+
+        public WorldViewportGump(World world, GameScene scene) : base(world, 0, 0)
         {
             _scene = scene;
             AcceptMouseInput = false;
@@ -95,12 +67,10 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     Point n = ResizeGameWindow(_lastSize);
 
-                    UIManager.GetGump<OptionsGump>()?.UpdateVideo();
-
-                    if (Client.Version >= ClientVersion.CV_200)
-                    {
-                        NetClient.Socket.Send_GameWindowSize((uint)n.X, (uint)n.Y);
-                    }
+                    // if (Client.Game.UO.Version >= Utility.ClientVersion.CV_200)
+                    // {
+                    //     NetClient.Socket.Send_GameWindowSize((uint)n.X, (uint)n.Y);
+                    // }
 
                     _clicked = false;
                 }
@@ -112,12 +82,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             _borderControl = new BorderControl(0, 0, Width, Height, 4);
 
-            _borderControl.DragEnd += (sender, e) =>
-            {
-                UIManager.GetGump<OptionsGump>()?.UpdateVideo();
-            };
-
             UIManager.SystemChat = _systemChatControl = new SystemChatControl(
+                this,
                 BORDER_WIDTH,
                 BORDER_WIDTH,
                 scene.Camera.Bounds.Width,
@@ -131,10 +97,22 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (ProfileManager.CurrentProfile.LastVersionHistoryShown != CUOEnviroment.Version.ToString())
             {
-                UIManager.Add(new VersionHistory());
+                UIManager.Add(new VersionHistory(world));
                 ProfileManager.CurrentProfile.LastVersionHistoryShown = CUOEnviroment.Version.ToString();
-                
-                LegionScripting.LegionScripting.DownloadAPIPy();
+
+                LegionScripting.LegionScripting.DownloadApiPy();
+            }
+
+            if (Settings.GlobalSettings.FPS < GameController.SupportedRefreshRate)
+            {
+                var fps = new Timer(TimeSpan.FromSeconds(5));
+                fps.Elapsed += (sender, args) =>
+                {
+                    if (World.Instance != null)
+                        GameActions.Print($"Your monitor supports {GameController.SupportedRefreshRate} fps, but you currently have your fps limited to {Settings.GlobalSettings.FPS}. To update this type -syncfps", 32);
+                    fps?.Stop();
+                };
+                fps.Start();
             }
         }
 
@@ -227,7 +205,6 @@ namespace ClassicUO.Game.UI.Gumps
             _scene.Camera.Bounds.X = position.X + BORDER_WIDTH;
             _scene.Camera.Bounds.Y = position.Y + BORDER_WIDTH;
 
-            UIManager.GetGump<OptionsGump>()?.UpdateVideo();
             UpdateGameWindowPos();
         }
 
@@ -411,7 +388,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private Texture2D GetGumpTexture(uint g, out Rectangle bounds)
         {
-            ref readonly var texture = ref Client.Game.Gumps.GetGump(g);
+            ref readonly SpriteInfo texture = ref Client.Game.UO.Gumps.GetGump(g);
             bounds = texture.UV;
             return texture.Texture;
         }
@@ -428,7 +405,7 @@ namespace ClassicUO.Game.UI.Gumps
             }
             hueVector.Z = Alpha;
 
-            var texture = GetGumpTexture(h_border, out var bounds);
+            Texture2D texture = GetGumpTexture(h_border, out Rectangle bounds);
             if (texture != null)
             {
                 pos = new Rectangle

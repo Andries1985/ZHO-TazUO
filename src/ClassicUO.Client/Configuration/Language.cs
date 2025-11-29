@@ -1,9 +1,15 @@
 ﻿using System.IO;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace ClassicUO.Configuration
 {
+    using System.Text.Json.Serialization;
+
+    [JsonSerializable(typeof(Language))]
+    public partial class LanguageJsonContext : JsonSerializerContext
+    {
+    }
+
     public class Language
     {
         public ModernOptionsGumpLanguage GetModernOptionsGumpLanguage { get; set; } = new ModernOptionsGumpLanguage();
@@ -24,7 +30,7 @@ namespace ClassicUO.Configuration
         {
             if (File.Exists(languageFilePath))
             {
-                Language f = JsonSerializer.Deserialize<Language>(File.ReadAllText(languageFilePath));
+                Language f = JsonSerializer.Deserialize(File.ReadAllText(languageFilePath), LanguageJsonContext.Default.Language);
                 Instance = f;
                 Save(); //To update language file with new additions as needed
             }
@@ -38,17 +44,17 @@ namespace ClassicUO.Configuration
         {
             Directory.CreateDirectory(Path.Combine(CUOEnviroment.ExecutablePath, "Data"));
 
-            string defaultLanguage = JsonSerializer.Serialize<Language>(Instance, new JsonSerializerOptions() { WriteIndented = true });
+            string defaultLanguage = JsonSerializer.Serialize(Instance, LanguageJsonContext.Default.Language);
             File.WriteAllText(languageFilePath, defaultLanguage);
         }
 
         private static void Save()
         {
-            string language = JsonSerializer.Serialize<Language>(Instance, new JsonSerializerOptions() { WriteIndented = true });
+            string language = JsonSerializer.Serialize(Instance, LanguageJsonContext.Default.Language);
             File.WriteAllText(languageFilePath, language);
         }
 
-        private static string languageFilePath { get { return Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Language.json"); } }
+        private static string languageFilePath => Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Language.json");
     }
 
     public class ModernOptionsGumpLanguage
@@ -153,6 +159,8 @@ namespace ClassicUO.Configuration
             public string AuraForParty { get; set; } = "Use a custom color for party members";
             public string AuraPartyColor { get; set; } = "Party aura color";
             public string IgnoreStaminaCheck { get; set; } = "Disable stamina check for movement";
+            public string DisableGrayEnemies { get; set; } = "Don't make last target/enemies gray";
+            public string DisableDismountWarmode { get; set; } = "Prevent dismounting in combat";
             #endregion
 
             #region General->Gumps
@@ -235,6 +243,7 @@ namespace ClassicUO.Configuration
             #region GameWindow
             public string FPSCap { get; set; } = "FPS Cap";
             public string BackgroundFPS { get; set; } = "Reduce FPS when game is not in focus";
+            public string EnableVSync { get; set; } = "Enable VSync";
             public string FullsizeViewport { get; set; } = "Always use fullsize game world viewport";
             public string FullScreen { get; set; } = "Fullscreen window";
             public string LockViewport { get; set; } = "Lock game world viewport position/size";
@@ -439,6 +448,8 @@ namespace ClassicUO.Configuration
             public string DefaultGridColumns { get; set; } = "Default grid columns";
             public string GridHighlightSettings { get; set; } = "Grid highlight settings";
             public string GridHighlightSize { get; set; } = "Grid highlight size";
+            public string GridHighlightProperties { get; set; } = "Show highlighted item properties in tooltip";
+            public string GridHighlightShowRuleName { get; set; } = "Show matched rule name in tooltip";
             public string GridDisableTargeting { get; set; } = "Disable Targeting Grid Containers";
             #endregion
 
@@ -528,7 +539,12 @@ namespace ClassicUO.Configuration
             public string UseLandTexturesWhereAvailable { get; set; } = "Use land textures where available(Experimental)";
             public string SOSGumpID { get; set; } = "SOS Gump ID";
             public string UseWASDMovement { get; set; } = "Use WASD movement instead of arrow keys";
-            public string BorderCaveTiles { get; set; } = "Apply a border to static item art";
+            public string ApplyBorderCaveTiles { get; set; } = "Apply a border to cave tile art";
+            public string ForcedHouseTransparencyLevel { get; set; } = "Forced house transparency";
+            public string EnableHouseTransparency { get; set; } = "Enable forced house transparency";
+            public string HouseTransparencyTileHue { get; set; } = "House transparency tile hue";
+            public string EnableASyncMapLoading { get; set; } = "Enable ASync map loading";
+            public string ForceManagedZlib { get; set; } = "Force using a managed zlib";
             #endregion
 
             #region Tooltips
@@ -606,6 +622,7 @@ namespace ClassicUO.Configuration
             public string VisibleLayers { get; set; } = "Visible Layers";
             public string VisLayersInfo { get; set; } = "These settings are to hide layers on in-game mobiles. Check the box to hide that layer.";
             public string OnlyForYourself { get; set; } = "Only for yourself";
+            public string HiddenLayersEnabled { get; set; } = "Enable visible layer system";
             #endregion
         }
     }
